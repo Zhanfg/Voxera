@@ -19,13 +19,13 @@ Lightweight offline semantic-prosodic neural voice conversion engine for edge de
 Audio
   ├─ Native Acoustic Frontend ─┐
   ├─ ContentNet ───────────────┤
-  ├─ Native F0 / Pitch ─────────┼─> Native Condition Fusion -> Voice Decoder -> PCM
+  ├─ Native F0 / Pitch ─────────┼─> Native Condition Fusion -> DecoderNet -> Vocoder* -> PCM
   ├─ Prosody Encoder* ─────────┤
   └─ Semantic Sidecar* ────────┘
                     + TimbreNet Speaker Embedding
 ```
 
-`*` planned for later milestones. Semantic analysis will be asynchronous so it never blocks the real-time audio path.
+`*` not Voxera-native yet; the vocoder remains the main missing M1 generation component. Semantic analysis will be asynchronous so it never blocks the real-time audio path.
 
 ## M1 native progress
 
@@ -137,6 +137,24 @@ See [docs/M1_CONDITIONING.md](docs/M1_CONDITIONING.md).
 python training/smoke_condition_fusion.py
 ```
 
+### DecoderNet
+
+The fused 40 ms condition stream now has a native causal acoustic decoder:
+
+- 256-d condition input;
+- direct learned 4× expansion from 40 ms to 10 ms;
+- hidden width 192;
+- 8 causal depthwise temporal residual blocks;
+- 80-bin log-mel output;
+- fixed streaming cache;
+- **1,406,672 parameters / about 5.37 MiB FP32**.
+
+The direct frame expansion avoids transposed-convolution overlap state, so streaming chunks can exactly reproduce offline inference. See [docs/M1_DECODER.md](docs/M1_DECODER.md).
+
+```bash
+python training/smoke_decoder.py
+```
+
 ## M1 executable baseline
 
 M1 uses MeanVC2 through audio.cpp as a temporary quality/latency oracle. Neither project is vendored into Voxera.
@@ -178,7 +196,7 @@ python benchmarks/frontend.py
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC baseline:** real WAV-to-WAV reference conversion plus Voxera-native acoustic/content/pitch/timbre/conditioning plumbing. **In progress.**
+2. **M1 — Offline VC baseline:** real WAV-to-WAV reference conversion plus Voxera-native acoustic/content/pitch/timbre/conditioning/decoder plumbing. **In progress.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
