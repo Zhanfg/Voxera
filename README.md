@@ -2,7 +2,7 @@
 
 Lightweight offline semantic-prosodic neural voice conversion engine for edge devices.
 
-> Status: **M1 / pre-alpha**. A real zero-shot WAV-to-WAV reference path is available through MeanVC2. Voxera now has its own streaming acoustic frontend and a compact native ContentNet architecture for replacing the teacher content path.
+> Status: **M1 / pre-alpha**. A real zero-shot WAV-to-WAV reference path is available through MeanVC2. Voxera now also owns its streaming acoustic frontend and the first trainable ContentNet architecture.
 
 ## Goals
 
@@ -17,102 +17,80 @@ Lightweight offline semantic-prosodic neural voice conversion engine for edge de
 
 ```text
 Audio
-  ├─ Native Acoustic Frontend ─┐
-  ├─ ContentNet ───────────────┤
-  ├─ F0 / Pitch Extractor ─────┼─> Condition Fusion -> Voice Decoder -> PCM
-  ├─ Prosody Encoder* ─────────┤
-  └─ Semantic Sidecar* ────────┘
-                    + Speaker Embedding
+  ↓
+Native 80-bin log-mel frontend
+  ↓
+ContentNet ───────────────────┐
+F0 / Pitch Extractor* ────────┤
+Prosody Encoder* ─────────────┼─> Condition Fusion -> Voice Decoder* -> PCM
+Semantic Sidecar* ────────────┤
+Speaker / Style Encoder* ─────┘
 ```
 
-`*` planned for later milestones. Semantic analysis will be asynchronous so it never blocks the real-time audio path.
+`*` not Voxera-native yet.
 
-## M1 native progress
+## Native M1 components
 
 ### Acoustic frontend
 
-- 16 kHz input;
+- 16 kHz audio;
 - 25 ms frame / 10 ms hop;
 - 80-bin log-mel filterbank;
 - explicit pre-emphasis and Povey-style windowing;
 - offline and streaming APIs;
-- chunk-boundary invariant output;
-- NumPy-only reference implementation designed for later C++/SIMD porting.
-
-The important invariant is:
-
-```text
-offline(audio) == concat(stream(chunk_1), stream(chunk_2), ...)
-```
-
-within floating-point tolerance, regardless of irregular input chunk sizes.
+- irregular chunk boundaries produce the same features as offline extraction.
 
 ### ContentNet
 
-The first Voxera-native neural content encoder is intentionally small and causal:
+The first Voxera neural component is a compact causal TCN:
 
 ```text
-80-d fbank @ 10 ms
-    ↓
+80-d log-mel @ 10 ms
+        ↓
 80 → 192 projection
-    ↓
+        ↓
 12 causal depthwise TCN blocks
 dilation 1,2,4,8,16,32 × 2
-    ↓
+        ↓
 192 → 256 projection
-    ↓
-256-d dense content @ 10 ms
-    ↓
-chunk-safe cadence selector
-    ↓
-256-d VC content @ 40 ms
+        ↓
+dense content @ 10 ms
+        ↓
+cadence selector
+        ↓
+256-d content @ 40 ms
 ```
 
-Default model size is about **1.86M parameters / 7.08 MiB FP32** before quantization. It uses a fixed bounded convolution cache rather than attention KV caches. The intended first training stage is distillation from the MeanVC2 Fast-U2++ bottleneck representation.
+Design targets:
 
-Training dependencies are optional:
+- about 1.86M parameters;
+- about 7.1 MiB in FP32 before graph/runtime overhead;
+- about 1.9 MB raw weight payload if fully INT8-quantized;
+- fixed-shape streaming state rather than attention KV cache;
+- ONNX-exportable;
+- trained by distillation against the MeanVC2/Fast-U2++ bottleneck teacher.
 
-```bash
-pip install -e ".[train]"
-python training/smoke_contentnet.py
-python training/export_contentnet.py --output artifacts/contentnet.onnx
-```
+The runtime package does **not** depend on PyTorch. PyTorch and ONNX belong to the optional training toolchain only.
 
-See [training/README.md](training/README.md) for the model and distillation contract.
+See [training/README.md](training/README.md).
 
-Benchmark the native frontend with:
+## M1 executable teacher baseline
 
-```bash
-python benchmarks/frontend.py
-```
-
-## M1 executable baseline
-
-M1 uses MeanVC2 through audio.cpp as a temporary quality/latency oracle. Neither project is vendored into Voxera.
-
-Bootstrap the reference backend on a development machine:
+MeanVC2 through audio.cpp remains the temporary quality/latency oracle while native components are trained and connected.
 
 ```bash
 sh tools/bootstrap_reference.sh
-```
-
-Verify it:
-
-```bash
 voxera baseline doctor
-```
-
-Run real zero-shot conversion:
-
-```bash
 voxera baseline convert source.wav target.wav converted.wav
 ```
 
-The source is what is being said; the target WAV is the reference voice. Reference assets are kept below `.cache/reference/` and never committed.
+Reference assets stay below `.cache/reference/` and are never committed.
 
-See [docs/M1_REFERENCE_BASELINE.md](docs/M1_REFERENCE_BASELINE.md) for the replacement plan.
+See [docs/M1_REFERENCE_BASELINE.md](docs/M1_REFERENCE_BASELINE.md).
 
 ## Development
+
+Core/runtime checks:
 
 ```bash
 python -m venv .venv
@@ -120,14 +98,21 @@ python -m venv .venv
 pip install -e ".[dev]"
 ruff check .
 pytest -q
-python benchmarks/smoke.py
 python benchmarks/frontend.py
+```
+
+ContentNet development:
+
+```bash
+pip install -e ".[train]"
+python training/smoke_contentnet.py
+python training/export_contentnet.py --output artifacts/contentnet.onnx
 ```
 
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC baseline:** real WAV-to-WAV reference conversion plus Voxera-native acoustic/content plumbing. **In progress.**
+2. **M1 — Offline VC baseline:** teacher reference + native acoustic frontend + native ContentNet + remaining VC path. **In progress.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
@@ -135,4 +120,4 @@ python benchmarks/frontend.py
 
 ## Licensing
 
-Source code in this repository is licensed under Apache-2.0 unless a file says otherwise. Model weights and datasets can have separate licenses and must be tracked independently. See [`THIRD_PARTY.md`](THIRD_PARTY.md).
+Source code in this repository is Apache-2.0 unless a file says otherwise. Model weights and datasets can have separate licenses and must be tracked independently. See [`THIRD_PARTY.md`](THIRD_PARTY.md).
