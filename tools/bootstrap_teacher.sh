@@ -20,12 +20,12 @@ require python
 mkdir -p "$TEACHER_ROOT"
 
 if [ ! -d "$MEANVC2_DIR/.git" ]; then
-  echo "[1/3] cloning pinned MeanVC2 teacher"
+  echo "[1/4] cloning pinned MeanVC2 teacher"
   git init "$MEANVC2_DIR"
   git -C "$MEANVC2_DIR" remote add origin "$MEANVC2_REPO"
 fi
 
-echo "[2/3] fetching teacher commit $MEANVC2_COMMIT"
+echo "[2/4] fetching teacher commit $MEANVC2_COMMIT"
 git -C "$MEANVC2_DIR" fetch --depth 1 origin "$MEANVC2_COMMIT"
 git -C "$MEANVC2_DIR" checkout --detach FETCH_HEAD
 
@@ -36,28 +36,64 @@ if [ "$ACTUAL_COMMIT" != "$MEANVC2_COMMIT" ]; then
 fi
 printf '%s\n' "$ACTUAL_COMMIT" > "$TEACHER_ROOT/meanvc2.commit"
 
-echo "[3/3] checking teacher Python environment"
-if ! python - <<'PY'
-modules = ["numpy", "torch", "torchaudio", "soundfile", "tqdm"]
+echo "[3/4] checking the full preprocessing environment"
+if ! MEANVC2_DIR="$MEANVC2_DIR" python - <<'PY'
+import os
+import sys
+
+teacher = os.environ["MEANVC2_DIR"]
+sys.path.insert(0, teacher)
+
+modules = [
+    "numpy",
+    "torch",
+    "torchaudio",
+    "soundfile",
+    "tqdm",
+    "librosa",
+    "soxr",
+    "huggingface_hub",
+]
 missing = []
 for module in modules:
     try:
         __import__(module)
     except Exception:
         missing.append(module)
+
 if missing:
     raise SystemExit("missing Python modules: " + ", ".join(missing))
+
+from torchaudio.compliance import kaldi  # noqa: F401
+from preprocess.audio import load_wav, melspectrogram  # noqa: F401
+from preprocess.models.ecapa_tdnn import ECAPA_TDNN_SMALL  # noqa: F401
 PY
 then
   echo
-  echo "MeanVC2 source is pinned and ready, but its preprocessing Python"
-  echo "dependencies are not fully installed in the current environment."
-  echo "Use a dedicated Python 3.11 environment and install the upstream"
-  echo "preprocessing dependencies before running tools/prepare_teacher_cache.sh."
+  echo "MeanVC2 source is pinned, but its preprocessing environment is incomplete."
+  echo "Use Python 3.11 in a dedicated environment and install the upstream"
+  echo "MeanVC2 preprocessing dependencies. Voxera runtime dependencies must"
+  echo "remain separate from this teacher-only environment."
   exit 2
 fi
+
+echo "[4/4] downloading official MeanVC2 preprocessing checkpoints"
+(
+  cd "$MEANVC2_DIR"
+  python initialization.py --task preprocess
+)
+
+for checkpoint in \
+  "$MEANVC2_DIR/preprocess/ckpts/fastu2pp_80ms.pt" \
+  "$MEANVC2_DIR/preprocess/ckpts/wavlm_large_finetune.pth"
+do
+  if [ ! -s "$checkpoint" ]; then
+    echo "teacher checkpoint missing after initialization: $checkpoint" >&2
+    exit 1
+  fi
+done
 
 echo
 echo "teacher_source=$MEANVC2_DIR"
 echo "teacher_commit=$ACTUAL_COMMIT"
-echo "source bootstrap complete"
+echo "teacher checkpoints ready"
