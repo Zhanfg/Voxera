@@ -57,18 +57,43 @@ dimensions, and mismatched cache sets before training starts. The manifest also
 stores a SHA-256 hash for each source WAV so stale teacher outputs can be
 detected by later tooling.
 
-## Bootstrap
+## One-command training
 
-The repository provides no-argument shell entry points:
+Once real training WAVs exist, the complete M1 path has one no-argument entry
+point:
 
 ```bash
-sh tools/bootstrap_teacher.sh
-sh tools/prepare_teacher_cache.sh
+sh tools/train_m1.sh
 ```
 
-The bootstrap pins the upstream source. Teacher preprocessing dependencies are
-kept outside Voxera's runtime environment because MeanVC2's WavLM/ECAPA stack
-is intentionally heavy and is needed only while producing training targets.
+It performs, in order:
+
+1. Voxera environment + WAV format audit;
+2. pinned MeanVC2 bootstrap;
+3. stale-aware teacher cache extraction;
+4. ContentNet + TimbreNet training;
+5. ConditionFusion + DecoderNet + LiteVocoder training;
+6. full-graph joint refinement.
+
+MeanVC2 and Voxera can use different Python interpreters:
+
+```text
+VOXERA_TEACHER_PYTHON=/path/to/meanvc2/python
+VOXERA_TRAIN_PYTHON=/path/to/voxera/python
+```
+
+This is intentional: teacher preprocessing is a research-only dependency stack,
+not part of the deployable Voxera runtime.
+
+## Teacher-cache freshness
+
+Before every extraction pass, Voxera compares the current WAV SHA-256 values
+against the previous manifest. Changed or removed utterances have their cached
+BN, mel, and speaker arrays deleted before MeanVC2 runs. A teacher-commit change
+invalidates the complete cache.
+
+The old manifest/provenance files are removed as soon as stale data is detected,
+so a failed partial extraction cannot later be mistaken for a valid cache.
 
 ## Implemented encoder training
 
@@ -146,4 +171,4 @@ end-to-end optimization to limit representation collapse.
    - low learning rate;
    - preserve content/speaker auxiliary losses to prevent entanglement.
 
-Stages 1 through 5 are implemented. The training-system code path is complete; the remaining M1 gates are producing real teacher caches/checkpoints on a sufficiently large licensed dataset and measuring conversion quality/latency against the MeanVC2 oracle.
+Stages 1 through 5 and the one-command orchestrator are implemented. The training-system code path is complete; the remaining M1 gates are producing real teacher caches/checkpoints on a sufficiently large licensed dataset and measuring conversion quality/latency against the MeanVC2 oracle.
