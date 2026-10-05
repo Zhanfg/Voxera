@@ -116,3 +116,36 @@ python training/smoke_timbrenet.py
 ```
 
 The smoke test checks output dimensionality and L2 normalization.
+
+
+## Condition Fusion
+
+`ConditionFusion` combines ContentNet, pitch conditions, and TimbreNet into the
+per-frame decoder condition.
+
+### Contract
+
+```text
+content 256 @ 40 ms ────────────────┐
+speaker 256 → 8×128 timbre tokens ──┼─> content-conditioned attention
+pitch 3 → 64 hidden ────────────────┘
+                         ↓
+                 gated residual fusion
+                         ↓
+                 decoder condition 256
+```
+
+The default fusion model has **630,720 parameters** (about **2.41 MiB FP32**).
+
+The timbre-token projector is deliberately separate from TimbreNet. TimbreNet
+answers *who is speaking*; token attention answers *which target-timbre cues are
+relevant for this content frame*.
+
+### Smoke test
+
+```bash
+python training/smoke_condition_fusion.py
+```
+
+The smoke test validates output shape and confirms each frame's timbre
+attention weights sum to one.
