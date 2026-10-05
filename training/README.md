@@ -297,3 +297,71 @@ Checkpoint writes use a temporary file followed by an atomic replace.
 CI executes a real one-record, one-epoch CPU training pass for both encoders,
 including backward propagation, optimizer update, and checkpoint metadata
 validation.
+
+
+## Generator training
+
+The initial acoustic and waveform stages are executable with:
+
+```bash
+sh tools/train_generators.sh
+```
+
+The no-argument shell entry point defaults to the validated teacher manifest and
+writes checkpoints under `artifacts/checkpoints/`. Configuration can be
+overridden with:
+
+```text
+VOXERA_TEACHER_MANIFEST
+VOXERA_CHECKPOINT_DIR
+VOXERA_GENERATOR_EPOCHS
+VOXERA_GRAD_ACCUM
+```
+
+### ConditionFusion + DecoderNet
+
+This stage intentionally starts from teacher inputs instead of untrained student
+encoders:
+
+```text
+MeanVC2 BN @ 40 ms ──────────────┐
+native source pitch @ 40 ms ─────┼─> ConditionFusion → DecoderNet
+teacher speaker embedding ────────┘                    ↓
+                                               teacher mel @ 10 ms
+```
+
+For each utterance, the trainer takes the common valid prefix across BN, pitch,
+and mel, then randomly crops a bounded condition span. The decoder loss combines
+mel L1, first-order delta, and second-order acceleration terms.
+
+This isolates acoustic-generation learning from ContentNet/TimbreNet errors.
+After the staged models converge, joint refinement can replace teacher
+conditions with student conditions.
+
+### LiteVocoder
+
+The initial vocoder stage consumes MeanVC2's aligned 80-bin mel and the original
+16 kHz waveform. Mel frames and waveform hops are cropped from the same start
+index, preserving exact 160-sample alignment.
+
+The objective remains:
+
+- log-magnitude L1;
+- magnitude-weighted circular phase distance;
+- waveform L1 after differentiable Fourier reconstruction.
+
+### Gradient accumulation
+
+Encoder and generator trainers average gradients by the **actual** number of
+records accumulated before each optimizer step. This matters for the final
+partial group when the dataset size is not divisible by the configured
+accumulation factor.
+
+### Generator checkpoints
+
+The acoustic checkpoint contains both `condition_fusion` and `decoder`
+states. The vocoder checkpoint contains `lite_vocoder`. Both include optimizer
+state, configs, epoch/global step, pinned MeanVC2 commit, and manifest SHA-256.
+
+CI executes a real one-record CPU training pass for both generator stages,
+including backward propagation and checkpoint validation.
