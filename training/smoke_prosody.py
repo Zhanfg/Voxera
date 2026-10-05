@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import torch
-
 from prosody_conditioner import ProsodyConditioner
 from prosody_conditioner import count_parameters as conditioner_parameters
 from prosodynet import ProsodyNet
