@@ -6,6 +6,7 @@ TEACHER_ROOT="$ROOT_DIR/.cache/teacher"
 MEANVC2_DIR="$TEACHER_ROOT/MeanVC2"
 MEANVC2_REPO="https://github.com/ASLP-lab/MeanVC2.git"
 MEANVC2_COMMIT="13acf84c1bf135ea5edad9c245b345289b06b33e"
+TEACHER_PYTHON="${VOXERA_TEACHER_PYTHON:-python}"
 
 require() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -15,7 +16,7 @@ require() {
 }
 
 require git
-require python
+require "$TEACHER_PYTHON"
 
 mkdir -p "$TEACHER_ROOT"
 
@@ -37,7 +38,7 @@ fi
 printf '%s\n' "$ACTUAL_COMMIT" > "$TEACHER_ROOT/meanvc2.commit"
 
 echo "[3/4] checking the full preprocessing environment"
-if ! MEANVC2_DIR="$MEANVC2_DIR" python - <<'PY'
+if ! MEANVC2_DIR="$MEANVC2_DIR" "$TEACHER_PYTHON" - <<'PY'
 import os
 import sys
 
@@ -71,16 +72,15 @@ PY
 then
   echo
   echo "MeanVC2 source is pinned, but its preprocessing environment is incomplete."
-  echo "Use Python 3.11 in a dedicated environment and install the upstream"
-  echo "MeanVC2 preprocessing dependencies. Voxera runtime dependencies must"
-  echo "remain separate from this teacher-only environment."
+  echo "Set VOXERA_TEACHER_PYTHON to a dedicated Python 3.11 interpreter with"
+  echo "the upstream MeanVC2 preprocessing dependencies installed."
   exit 2
 fi
 
 echo "[4/4] downloading official MeanVC2 preprocessing checkpoints"
 (
   cd "$MEANVC2_DIR"
-  python initialization.py --task preprocess
+  "$TEACHER_PYTHON" initialization.py --task preprocess
 )
 
 for checkpoint in \
@@ -94,6 +94,7 @@ do
 done
 
 echo
+echo "teacher_python=$TEACHER_PYTHON"
 echo "teacher_source=$MEANVC2_DIR"
 echo "teacher_commit=$ACTUAL_COMMIT"
 echo "teacher checkpoints ready"

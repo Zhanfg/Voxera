@@ -6,6 +6,7 @@ MANIFEST="${VOXERA_TEACHER_MANIFEST:-$ROOT_DIR/artifacts/teacher_cache/manifest.
 OUTPUT_DIR="${VOXERA_CHECKPOINT_DIR:-$ROOT_DIR/artifacts/checkpoints}"
 EPOCHS="${VOXERA_ENCODER_EPOCHS:-10}"
 ACCUM="${VOXERA_GRAD_ACCUM:-4}"
+TRAIN_PYTHON="${VOXERA_TRAIN_PYTHON:-python}"
 
 if [ ! -f "$MANIFEST" ]; then
   echo "teacher manifest not found: $MANIFEST" >&2
@@ -14,7 +15,7 @@ if [ ! -f "$MANIFEST" ]; then
 fi
 
 cd "$ROOT_DIR"
-python -m training.train_encoders \
+"$TRAIN_PYTHON" -m training.train_encoders \
   --manifest "$MANIFEST" \
   --output-dir "$OUTPUT_DIR" \
   --component both \
