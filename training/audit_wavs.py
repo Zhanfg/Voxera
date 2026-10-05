@@ -9,7 +9,11 @@ from voxera.audio import load_wav
 
 def audit_wav_directory(wav_dir: Path) -> dict[str, object]:
     wav_dir = wav_dir.resolve()
-    wavs = sorted(path for path in wav_dir.iterdir() if path.is_file() and path.suffix.lower() == ".wav")
+    wavs = sorted(
+        path
+        for path in wav_dir.iterdir()
+        if path.is_file() and path.suffix.lower() == ".wav"
+    )
     if not wavs:
         raise ValueError(f"no WAV files found in {wav_dir}")
 
