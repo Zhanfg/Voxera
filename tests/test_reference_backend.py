@@ -41,7 +41,10 @@ def test_build_command_is_shell_free_and_explicit(tmp_path: Path) -> None:
     assert command[command.index("--voice-ref") + 1] == "target.wav"
 
 
-def test_convert_validates_and_returns_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_convert_validates_and_returns_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     cli = _touch(tmp_path / "audiocpp_cli")
     if os.name != "nt":
         cli.chmod(0o755)
