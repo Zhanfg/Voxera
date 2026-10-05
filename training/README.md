@@ -230,3 +230,70 @@ matching without changing the deployed generator topology.
 python training/smoke_vocoder.py
 python training/export_lite_vocoder.py --output artifacts/lite_vocoder.onnx
 ```
+
+
+## Encoder training
+
+ContentNet and TimbreNet now have real manifest-driven training loops.
+
+Run both with the no-argument entry point:
+
+```bash
+sh tools/train_encoders.sh
+```
+
+Defaults:
+
+- manifest: `artifacts/teacher_cache/manifest.jsonl`;
+- checkpoints: `artifacts/checkpoints/`;
+- 10 epochs;
+- automatic CUDA/CPU selection;
+- gradient accumulation: 4.
+
+The shell entry point accepts configuration through environment variables rather
+than positional arguments:
+
+```text
+VOXERA_TEACHER_MANIFEST
+VOXERA_CHECKPOINT_DIR
+VOXERA_ENCODER_EPOCHS
+VOXERA_GRAD_ACCUM
+```
+
+### ContentNet stage
+
+For each utterance:
+
+1. read the original source WAV from the validated manifest;
+2. compute Voxera's native 80-bin frontend features;
+3. run dense 10 ms ContentNet;
+4. align the `3,7,11,...` 40 ms student cadence to the common prefix of the
+   MeanVC2 Fast-U2++ BN target;
+5. optimize MSE + cosine + temporal-delta distillation loss.
+
+Using the native frontend during training is deliberate: the student learns to
+match the teacher representation from the same features it will receive on the
+device.
+
+### TimbreNet stage
+
+For each utterance, two independently selected reference crops are encoded.
+Both are trained against the normalized MeanVC2 WavLM+ECAPA embedding, while a
+same-speaker crop-consistency term discourages phonetic leakage.
+
+### Checkpoints
+
+Each checkpoint contains:
+
+- model and optimizer state;
+- model configuration;
+- training configuration;
+- epoch and global step;
+- pinned MeanVC2 teacher commit;
+- teacher-manifest absolute path and SHA-256.
+
+Checkpoint writes use a temporary file followed by an atomic replace.
+
+CI executes a real one-record, one-epoch CPU training pass for both encoders,
+including backward propagation, optimizer update, and checkpoint metadata
+validation.
