@@ -26,3 +26,4 @@ jobs:
       - run: ruff check .
       - run: pytest -q
       - run: python benchmarks/smoke.py
+      - run: python benchmarks/frontend.py
