@@ -10,7 +10,7 @@ from .acoustic import MelSpectrogram
 from .audio import AudioBuffer, resample_linear
 from .conditioning import FrameConditions, align_frame_conditions
 from .features import FeatureBatch, LogMelFrontend
-from .pitch import PitchTrack, YinPitchExtractor
+from .pitch import YinPitchExtractor
 from .speaker import SpeakerEmbedding
 from .vocoder import SpectralFrames, StreamingISTFT
 
