@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import torch
 from lite_vocoder import LiteVocoder, count_parameters
+from vocoder_loss import vocoder_reconstruction_loss
 
 
 def main() -> int:
@@ -36,6 +37,13 @@ def main() -> int:
         streaming_logmag = torch.cat(logmag_parts, dim=1)
         streaming_phase = torch.cat(phase_parts, dim=1)
 
+    target_waveform = torch.randn(2, 97 * 160) * 0.03
+    loss, metrics = vocoder_reconstruction_loss(
+        offline_logmag,
+        offline_phase,
+        target_waveform,
+    )
+
     parameters = count_parameters(model)
     magnitude_error = float((offline_logmag - streaming_logmag).abs().max())
     phase_error = float((offline_phase - streaming_phase).abs().max())
@@ -45,11 +53,15 @@ def main() -> int:
     print(f"spectral_shape={tuple(offline_logmag.shape)}")
     print(f"max_logmag_streaming_error={magnitude_error:.9f}")
     print(f"max_phase_streaming_error={phase_error:.9f}")
+    print(f"loss={float(loss):.6f}")
+    print(f"waveform_loss={float(metrics['waveform']):.6f}")
 
     if offline_logmag.shape != (2, 97, 161):
         raise RuntimeError("unexpected LiteVocoder spectral shape")
     if max(magnitude_error, phase_error) > 2e-6:
         raise RuntimeError("streaming LiteVocoder diverged from offline output")
+    if not torch.isfinite(loss):
+        raise RuntimeError("LiteVocoder training loss is not finite")
     return 0
 
 
