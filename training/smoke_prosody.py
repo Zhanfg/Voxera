@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import torch
 
-from training.prosody_conditioner import ProsodyConditioner, count_parameters as conditioner_parameters
-from training.prosodynet import ProsodyNet, count_parameters as prosody_parameters
+from prosody_conditioner import ProsodyConditioner
+from prosody_conditioner import count_parameters as conditioner_parameters
+from prosodynet import ProsodyNet
+from prosodynet import count_parameters as prosody_parameters
 
 
 def main() -> int:
