@@ -136,7 +136,7 @@ class NativeProsodyExtractor:
             0.0,
             1.0,
         ).astype(np.float32)
-        pause = np.maximum(pause, (~voiced).astype(np.float32) * 0.55)
+        pause = np.maximum(pause, (~voiced).astype(np.float32) * 0.90)
 
         emphasis_drive = (
             0.55 * np.maximum(energy_z, 0.0)
