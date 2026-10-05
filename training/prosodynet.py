@@ -83,9 +83,9 @@ class CausalProsodyBlock(nn.Module):
 class ProsodyNet(nn.Module):
     """Compact acoustic prosody encoder.
 
-    Local embeddings are causal and streamable. The global embedding is pooled
-    from the utterance/chunk and is therefore intended for offline or
-    phrase-level use until M5 adds explicit streaming style state.
+    Local embeddings are causal and streamable. The global embedding pools an
+    utterance or phrase and is intentionally offline/phrase-level until M5 adds
+    explicit streaming style state.
     """
 
     def __init__(self, config: ProsodyNetConfig | None = None) -> None:
@@ -156,17 +156,10 @@ class ProsodyNet(nn.Module):
         pitch: Tensor,
         cache: Tensor,
     ) -> tuple[Tensor, Tensor, Tensor]:
-        self._validate_inputs(acoustic, pitch, cache)
-        hidden = self.input_projection(torch.cat((acoustic, pitch), dim=-1))
-
-        next_caches: list[Tensor] = []
-        for index, block in enumerate(self.blocks):
-            hidden, next_cache = block.forward_chunk(hidden, cache[index])
-            next_caches.append(next_cache)
-
+        hidden, next_cache = self._encode_hidden(acoustic, pitch, cache)
         local = self.local_projection(self.local_norm(hidden))
         local_descriptor = self.local_descriptor_head(local)
-        return local, local_descriptor, torch.stack(next_caches, dim=0)
+        return local, local_descriptor, next_cache
 
     def forward(
         self,
@@ -175,38 +168,36 @@ class ProsodyNet(nn.Module):
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         if acoustic.ndim != 3:
             raise ValueError("acoustic must have shape [batch, frames, acoustic_dim]")
+
         cache = self.initial_cache(
             acoustic.shape[0],
             device=acoustic.device,
             dtype=acoustic.dtype,
         )
-        local, local_descriptor, _ = self.forward_chunk(acoustic, pitch, cache)
+        hidden, _ = self._encode_hidden(acoustic, pitch, cache)
+        local = self.local_projection(self.local_norm(hidden))
+        local_descriptor = self.local_descriptor_head(local)
 
-        pooled = torch.cat(
-            (
-                local.new_zeros(local.shape[0], self.config.hidden_dim),
-                local.new_zeros(local.shape[0], self.config.hidden_dim),
-            ),
-            dim=-1,
-        )
-        hidden = self.input_projection(torch.cat((acoustic, pitch), dim=-1))
-        replay_cache = self.initial_cache(
-            acoustic.shape[0],
-            device=acoustic.device,
-            dtype=acoustic.dtype,
-        )
-        for index, block in enumerate(self.blocks):
-            hidden, replay_cache[index] = block.forward_chunk(
-                hidden,
-                replay_cache[index],
-            )
         mean = hidden.mean(dim=1)
         std = torch.sqrt(torch.clamp(hidden.var(dim=1, unbiased=False), min=1e-6))
-        pooled = torch.cat((mean, std), dim=-1)
-
-        global_style = self.global_projection(pooled)
+        global_style = self.global_projection(torch.cat((mean, std), dim=-1))
         global_descriptor = self.global_descriptor_head(global_style)
         return local, global_style, local_descriptor, global_descriptor
+
+    def _encode_hidden(
+        self,
+        acoustic: Tensor,
+        pitch: Tensor,
+        cache: Tensor,
+    ) -> tuple[Tensor, Tensor]:
+        self._validate_inputs(acoustic, pitch, cache)
+        hidden = self.input_projection(torch.cat((acoustic, pitch), dim=-1))
+
+        next_caches: list[Tensor] = []
+        for index, block in enumerate(self.blocks):
+            hidden, next_cache = block.forward_chunk(hidden, cache[index])
+            next_caches.append(next_cache)
+        return hidden, torch.stack(next_caches, dim=0)
 
     def _validate_inputs(
         self,
