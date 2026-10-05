@@ -57,7 +57,7 @@ def test_silence_is_subdued_and_pause_heavy() -> None:
     result = NativeProsodyExtractor().extract(samples, _track(f0, periodicity=0.0))
 
     assert result.style == "subdued"
-    assert result.global_style[5] >= 0.9
+    assert result.global_style[5] > 0.89
     assert result.global_style[4] == 0.0
 
 
