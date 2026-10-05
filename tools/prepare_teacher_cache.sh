@@ -28,6 +28,11 @@ fi
 
 mkdir -p "$CACHE_DIR/bn" "$CACHE_DIR/mel" "$CACHE_DIR/speaker"
 
+echo "[1/5] invalidating stale teacher outputs"
+python "$ROOT_DIR/training/invalidate_teacher_cache.py" \
+  --wav-dir "$WAV_DIR" \
+  --cache-dir "$CACHE_DIR"
+
 DEVICE=cpu
 if python - <<'PY' >/dev/null 2>&1
 import torch
@@ -37,25 +42,25 @@ then
   DEVICE=cuda
 fi
 
-echo "[1/4] extracting 40 ms / 256-d MeanVC2 bottlenecks"
+echo "[2/5] extracting 40 ms / 256-d MeanVC2 bottlenecks"
 python "$TEACHER_DIR/preprocess/extract_bn_80ms.py" \
   --input_dir "$WAV_DIR" \
   --output_dir "$CACHE_DIR/bn" \
   --device "$DEVICE"
 
-echo "[2/4] extracting 10 ms / 80-bin MeanVC2 mel targets"
+echo "[3/5] extracting 10 ms / 80-bin MeanVC2 mel targets"
 python "$TEACHER_DIR/preprocess/extract_mel.py" \
   --input_dir "$WAV_DIR" \
   --output_dir "$CACHE_DIR/mel" \
   --config preConfiged16K_10ms
 
-echo "[3/4] extracting 256-d WavLM + ECAPA speaker embeddings"
+echo "[4/5] extracting 256-d WavLM + ECAPA speaker embeddings"
 python "$TEACHER_DIR/preprocess/extract_spk_emb.py" \
   --input_dir "$WAV_DIR" \
   --output_dir "$CACHE_DIR/speaker" \
   --device "$DEVICE"
 
-echo "[4/4] validating cache and writing provenance manifest"
+echo "[5/5] validating cache and writing provenance manifest"
 python "$ROOT_DIR/training/teacher_cache.py" \
   --wav-dir "$WAV_DIR" \
   --cache-dir "$CACHE_DIR"
