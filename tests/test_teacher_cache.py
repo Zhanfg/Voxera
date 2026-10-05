@@ -10,6 +10,7 @@ import pytest
 from voxera.teacher_cache import (
     MEANVC2_COMMIT,
     build_teacher_cache_manifest,
+    invalidate_stale_teacher_cache,
 )
 
 
@@ -107,3 +108,66 @@ def test_non_finite_teacher_output_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="non-finite"):
         build_teacher_cache_manifest(wav_dir, cache_dir)
+
+
+
+def test_changed_wav_invalidates_only_affected_teacher_outputs(tmp_path: Path) -> None:
+    wav_dir, cache_dir = _valid_cache(tmp_path)
+    build_teacher_cache_manifest(wav_dir, cache_dir)
+
+    _write_wav(wav_dir / "utt_a.wav", samples=2_000)
+    summary = invalidate_stale_teacher_cache(wav_dir, cache_dir)
+
+    assert summary.stale_utterances == ("utt_a",)
+    assert summary.invalidated_outputs == 3
+    assert not summary.teacher_reset
+    assert not (cache_dir / "bn" / "utt_a.npy").exists()
+    assert not (cache_dir / "mel" / "utt_a.npy").exists()
+    assert not (cache_dir / "speaker" / "utt_a.npy").exists()
+    assert (cache_dir / "bn" / "utt_b.npy").is_file()
+    assert not (cache_dir / "manifest.jsonl").exists()
+    assert not (cache_dir / "provenance.json").exists()
+
+
+def test_unchanged_cache_remains_valid(tmp_path: Path) -> None:
+    wav_dir, cache_dir = _valid_cache(tmp_path)
+    build_teacher_cache_manifest(wav_dir, cache_dir)
+
+    summary = invalidate_stale_teacher_cache(wav_dir, cache_dir)
+
+    assert summary.stale_utterances == ()
+    assert summary.invalidated_outputs == 0
+    assert not summary.teacher_reset
+    assert (cache_dir / "manifest.jsonl").is_file()
+    assert (cache_dir / "provenance.json").is_file()
+
+
+def test_removed_wav_cleans_orphan_teacher_outputs(tmp_path: Path) -> None:
+    wav_dir, cache_dir = _valid_cache(tmp_path)
+    build_teacher_cache_manifest(wav_dir, cache_dir)
+
+    (wav_dir / "utt_b.wav").unlink()
+    summary = invalidate_stale_teacher_cache(wav_dir, cache_dir)
+
+    assert summary.stale_utterances == ("utt_b",)
+    assert summary.invalidated_outputs == 3
+    assert not (cache_dir / "bn" / "utt_b.npy").exists()
+    assert (cache_dir / "bn" / "utt_a.npy").is_file()
+
+
+def test_teacher_commit_change_invalidates_entire_cache(tmp_path: Path) -> None:
+    wav_dir, cache_dir = _valid_cache(tmp_path)
+    build_teacher_cache_manifest(wav_dir, cache_dir)
+
+    provenance_path = cache_dir / "provenance.json"
+    provenance = json.loads(provenance_path.read_text())
+    provenance["teacher"]["commit"] = "different-teacher-commit"
+    provenance_path.write_text(json.dumps(provenance))
+
+    summary = invalidate_stale_teacher_cache(wav_dir, cache_dir)
+
+    assert summary.teacher_reset
+    assert summary.stale_utterances == ("utt_a", "utt_b")
+    assert summary.invalidated_outputs == 6
+    assert not (cache_dir / "manifest.jsonl").exists()
+    assert not (cache_dir / "provenance.json").exists()
