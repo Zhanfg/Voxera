@@ -149,3 +149,37 @@ python training/smoke_condition_fusion.py
 
 The smoke test validates output shape and confirms each frame's timbre
 attention weights sum to one.
+
+
+## DecoderNet
+
+`DecoderNet` maps the 40 ms fused condition stream to 10 ms log-mel frames.
+
+### Contract
+
+```text
+condition 256 @ 40 ms
+       ↓
+linear 256 → 4×192
+       ↓ reshape
+hidden 192 @ 10 ms
+       ↓
+8 causal depthwise TCN blocks
+       ↓
+80-bin log-mel @ 10 ms
+```
+
+The default decoder has **1,406,672 parameters** (about **5.37 MiB FP32**).
+
+The first objective combines frame-level mel L1 with first- and second-order
+temporal reconstruction losses. This discourages over-smoothed trajectories
+while keeping the decoder compact and deterministic.
+
+### Smoke test
+
+```bash
+python training/smoke_decoder.py
+```
+
+The smoke test verifies exact offline/streaming agreement across irregular
+condition chunks.
