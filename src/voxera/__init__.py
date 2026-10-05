@@ -5,6 +5,12 @@ from .conditioning import FrameConditions, align_frame_conditions, pitch_conditi
 from .config import AudioConfig
 from .content import ContentCadence, StreamingCadenceSelector
 from .features import FbankConfig, FeatureBatch, LogMelFrontend, StreamingLogMelFrontend
+from .native_pipeline import (
+    NativeConversionResult,
+    NativeConversionTrace,
+    NativeModels,
+    NativeOfflinePipeline,
+)
 from .pipeline import ReferencePipeline
 from .pitch import PitchConfig, PitchTrack, StreamingYinPitchExtractor, YinPitchExtractor
 from .speaker import SpeakerEmbedding, cosine_similarity
@@ -24,6 +30,10 @@ __all__ = [
     "LogMelFrontend",
     "MelConfig",
     "MelSpectrogram",
+    "NativeConversionResult",
+    "NativeConversionTrace",
+    "NativeModels",
+    "NativeOfflinePipeline",
     "PitchConfig",
     "PitchTrack",
     "ReferencePipeline",
@@ -41,4 +51,4 @@ __all__ = [
     "pitch_condition_features",
     "waveform_to_spectral_frames",
 ]
-__version__ = "0.1.0a7"
+__version__ = "0.1.0a8"
