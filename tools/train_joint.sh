@@ -7,6 +7,7 @@ CHECKPOINT_DIR="${VOXERA_CHECKPOINT_DIR:-$ROOT_DIR/artifacts/checkpoints}"
 OUTPUT_DIR="${VOXERA_JOINT_CHECKPOINT_DIR:-$CHECKPOINT_DIR}"
 EPOCHS="${VOXERA_JOINT_EPOCHS:-5}"
 ACCUM="${VOXERA_GRAD_ACCUM:-2}"
+TRAIN_PYTHON="${VOXERA_TRAIN_PYTHON:-python}"
 
 if [ ! -f "$MANIFEST" ]; then
   echo "teacher manifest not found: $MANIFEST" >&2
@@ -14,7 +15,7 @@ if [ ! -f "$MANIFEST" ]; then
 fi
 
 cd "$ROOT_DIR"
-python -m training.train_joint \
+"$TRAIN_PYTHON" -m training.train_joint \
   --manifest "$MANIFEST" \
   --checkpoint-dir "$CHECKPOINT_DIR" \
   --output-dir "$OUTPUT_DIR" \
