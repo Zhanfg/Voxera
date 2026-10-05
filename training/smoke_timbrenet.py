@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import torch
-
 from timbrenet import TimbreNet, count_parameters
 
 
