@@ -2,7 +2,7 @@
 
 Lightweight offline semantic-prosodic neural voice conversion engine for edge devices.
 
-> Status: **M1 / pre-alpha**. A real zero-shot WAV-to-WAV reference path is available through MeanVC2, while Voxera-native streaming components are being implemented underneath the same architecture.
+> Status: **M1 / pre-alpha**. A real zero-shot WAV-to-WAV reference path is available through MeanVC2. Voxera now has its own streaming acoustic frontend and a compact native ContentNet architecture for replacing the teacher content path.
 
 ## Goals
 
@@ -18,7 +18,7 @@ Lightweight offline semantic-prosodic neural voice conversion engine for edge de
 ```text
 Audio
   ├─ Native Acoustic Frontend ─┐
-  ├─ Content Encoder ──────────┤
+  ├─ ContentNet ───────────────┤
   ├─ F0 / Pitch Extractor ─────┼─> Condition Fusion -> Voice Decoder -> PCM
   ├─ Prosody Encoder* ─────────┤
   └─ Semantic Sidecar* ────────┘
@@ -29,9 +29,9 @@ Audio
 
 ## M1 native progress
 
-Voxera now contains its first native streaming speech component:
+### Acoustic frontend
 
-- 16 kHz acoustic frontend;
+- 16 kHz input;
 - 25 ms frame / 10 ms hop;
 - 80-bin log-mel filterbank;
 - explicit pre-emphasis and Povey-style windowing;
@@ -47,7 +47,40 @@ offline(audio) == concat(stream(chunk_1), stream(chunk_2), ...)
 
 within floating-point tolerance, regardless of irregular input chunk sizes.
 
-Benchmark it with:
+### ContentNet
+
+The first Voxera-native neural content encoder is intentionally small and causal:
+
+```text
+80-d fbank @ 10 ms
+    ↓
+80 → 192 projection
+    ↓
+12 causal depthwise TCN blocks
+dilation 1,2,4,8,16,32 × 2
+    ↓
+192 → 256 projection
+    ↓
+256-d dense content @ 10 ms
+    ↓
+chunk-safe cadence selector
+    ↓
+256-d VC content @ 40 ms
+```
+
+Default model size is about **1.86M parameters / 7.08 MiB FP32** before quantization. It uses a fixed bounded convolution cache rather than attention KV caches. The intended first training stage is distillation from the MeanVC2 Fast-U2++ bottleneck representation.
+
+Training dependencies are optional:
+
+```bash
+pip install -e ".[train]"
+python training/smoke_contentnet.py
+python training/export_contentnet.py --output artifacts/contentnet.onnx
+```
+
+See [training/README.md](training/README.md) for the model and distillation contract.
+
+Benchmark the native frontend with:
 
 ```bash
 python benchmarks/frontend.py
@@ -89,12 +122,6 @@ ruff check .
 pytest -q
 python benchmarks/smoke.py
 python benchmarks/frontend.py
-```
-
-Inspect a 16-bit PCM WAV:
-
-```bash
-voxera inspect input.wav
 ```
 
 ## Roadmap
