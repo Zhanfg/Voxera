@@ -8,10 +8,15 @@ from numpy.typing import NDArray
 
 from .acoustic import MelSpectrogram
 from .audio import AudioBuffer, resample_linear
-from .conditioning import FrameConditions, align_frame_conditions
+from .conditioning import (
+    FrameConditions,
+    align_frame_conditions,
+    pitch_condition_features,
+)
 from .content import ContentCadence
 from .features import FeatureBatch, LogMelFrontend
 from .pitch import YinPitchExtractor
+from .prosody import ProsodyEmbedding
 from .speaker import SpeakerEmbedding
 from .vocoder import SpectralFrames, StreamingISTFT
 
@@ -36,6 +41,26 @@ class ConditionModel(Protocol):
         ...
 
 
+class ProsodyModel(Protocol):
+    def encode(
+        self,
+        features: FloatArray,
+        pitch: FloatArray,
+    ) -> ProsodyEmbedding:
+        """Return learned local/global prosody for the source phrase."""
+        ...
+
+
+class ProsodyConditionModel(Protocol):
+    def apply(
+        self,
+        conditions: FloatArray,
+        prosody: ProsodyEmbedding,
+    ) -> FloatArray:
+        """Apply prosody as a residual to [frames, 256] M1 conditions."""
+        ...
+
+
 class AcousticDecoderModel(Protocol):
     def decode(self, conditions: FloatArray) -> MelSpectrogram:
         """Return 80-bin log-mel frames at 10 ms cadence."""
@@ -55,6 +80,14 @@ class NativeModels:
     condition: ConditionModel
     decoder: AcousticDecoderModel
     vocoder: VocoderModel
+    prosody: ProsodyModel | None = None
+    prosody_condition: ProsodyConditionModel | None = None
+
+    def __post_init__(self) -> None:
+        if (self.prosody is None) != (self.prosody_condition is None):
+            raise ValueError(
+                "prosody and prosody_condition must be provided together"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +116,9 @@ class NativeOfflinePipeline:
 
     Neural execution is supplied through small protocols so the orchestration is
     independent from PyTorch, ONNX Runtime, QNN, or another edge backend.
+
+    M2 prosody is optional. Without both prosody protocols this class executes
+    the stable M1 graph unchanged.
     """
 
     def __init__(
@@ -92,7 +128,7 @@ class NativeOfflinePipeline:
         sample_rate: int = 16_000,
     ) -> None:
         if sample_rate != 16_000:
-            raise ValueError("M1 native pipeline currently requires 16 kHz")
+            raise ValueError("native pipeline currently requires 16 kHz")
         self.models = models
         self.sample_rate = sample_rate
         self.frontend = LogMelFrontend()
@@ -117,7 +153,7 @@ class NativeOfflinePipeline:
         speaker: SpeakerEmbedding,
     ) -> NativeConversionResult:
         if speaker.dimension != 256:
-            raise ValueError("native M1 pipeline expects a 256-d speaker embedding")
+            raise ValueError("native pipeline expects a 256-d speaker embedding")
 
         source = self._prepare_audio(source_audio)
         if source.samples.size == 0:
@@ -138,10 +174,27 @@ class NativeOfflinePipeline:
             cadence=self.cadence,
         )
 
+        prosody = None
+        if self.models.prosody is not None:
+            dense_pitch = pitch_condition_features(pitch_track)
+            common = min(feature_batch.frame_count, dense_pitch.shape[0])
+            prosody = self.models.prosody.encode(
+                feature_batch.values[:common],
+                dense_pitch[:common],
+            )
+            self._validate_prosody(prosody, frame_conditions)
+
         fused = self._validate_fused(
             self.models.condition.fuse(frame_conditions),
             frame_conditions,
         )
+        if prosody is not None:
+            assert self.models.prosody_condition is not None
+            fused = self._validate_fused(
+                self.models.prosody_condition.apply(fused, prosody),
+                frame_conditions,
+            )
+
         mel = self.models.decoder.decode(fused)
         self._validate_mel(mel, frame_conditions)
 
@@ -233,6 +286,20 @@ class NativeOfflinePipeline:
         if not np.all(np.isfinite(content)):
             raise ValueError("content model returned non-finite values")
         return content
+
+    @staticmethod
+    def _validate_prosody(
+        prosody: ProsodyEmbedding,
+        conditions: FrameConditions,
+    ) -> None:
+        if not isinstance(prosody, ProsodyEmbedding):
+            raise TypeError("prosody model must return ProsodyEmbedding")
+        if prosody.frame_count != conditions.frame_count:
+            raise ValueError(
+                "prosody model must emit one local embedding per 40 ms "
+                f"condition frame: expected {conditions.frame_count}, "
+                f"got {prosody.frame_count}"
+            )
 
     @staticmethod
     def _validate_fused(
