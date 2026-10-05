@@ -92,15 +92,15 @@ def build_teacher_cache_manifest(
         records.append(
             TeacherCacheRecord(
                 utterance_id=utterance_id,
-                wav=_relative_or_absolute(wavs[utterance_id], wav_dir.parent),
+                wav=_manifest_relative(wavs[utterance_id], manifest_path.parent),
                 wav_sha256=_sha256(wavs[utterance_id]),
-                bn=_relative_or_absolute(bns[utterance_id], cache_dir),
+                bn=_manifest_relative(bns[utterance_id], manifest_path.parent),
                 bn_frames=int(bn.shape[0]),
                 bn_dim=int(bn.shape[1]),
-                mel=_relative_or_absolute(mels[utterance_id], cache_dir),
+                mel=_manifest_relative(mels[utterance_id], manifest_path.parent),
                 mel_frames=int(mel.shape[0]),
                 mel_dim=int(mel.shape[1]),
-                speaker=_relative_or_absolute(speakers[utterance_id], cache_dir),
+                speaker=_manifest_relative(speakers[utterance_id], manifest_path.parent),
                 speaker_dim=256,
             )
         )
@@ -126,6 +126,7 @@ def build_teacher_cache_manifest(
             "speaker": {"dimension": 256},
         },
         "utterances": len(records),
+        "path_base": "manifest_directory",
     }
     provenance_path.write_text(
         json.dumps(provenance, indent=2, ensure_ascii=False) + "\n",
@@ -186,11 +187,10 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _relative_or_absolute(path: Path, base: Path) -> str:
-    try:
-        return path.relative_to(base.resolve()).as_posix()
-    except ValueError:
-        return str(path)
+def _manifest_relative(path: Path, manifest_dir: Path) -> str:
+    return Path(
+        __import__("os").path.relpath(path, start=manifest_dir.resolve())
+    ).as_posix()
 
 
 def build_parser() -> argparse.ArgumentParser:
