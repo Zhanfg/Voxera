@@ -2,7 +2,7 @@
 
 Lightweight offline semantic-prosodic neural voice conversion engine for edge devices.
 
-> Status: **M1 / pre-alpha**. The core API is native to Voxera. A real zero-shot WAV-to-WAV reference path is now available through an external Apache-2.0 MeanVC2 baseline while Voxera-native neural components are implemented.
+> Status: **M1 / pre-alpha**. A real zero-shot WAV-to-WAV reference path is available through MeanVC2, while Voxera-native streaming components are being implemented underneath the same architecture.
 
 ## Goals
 
@@ -17,26 +17,41 @@ Lightweight offline semantic-prosodic neural voice conversion engine for edge de
 
 ```text
 Audio
-  ├─ Content Encoder ──────┐
-  ├─ F0 / Pitch Extractor ─┼─> Condition Fusion -> Voice Decoder -> PCM
-  ├─ Prosody Encoder* ─────┤
-  └─ Semantic Sidecar* ────┘
-                + Speaker Embedding
+  ├─ Native Acoustic Frontend ─┐
+  ├─ Content Encoder ──────────┤
+  ├─ F0 / Pitch Extractor ─────┼─> Condition Fusion -> Voice Decoder -> PCM
+  ├─ Prosody Encoder* ─────────┤
+  └─ Semantic Sidecar* ────────┘
+                    + Speaker Embedding
 ```
 
 `*` planned for later milestones. Semantic analysis will be asynchronous so it never blocks the real-time audio path.
 
-## M0 core
+## M1 native progress
 
-The Voxera reference package already contains:
+Voxera now contains its first native streaming speech component:
 
-- dependency-light PCM WAV I/O;
-- deterministic reference resampling;
-- typed protocols for Content Encoder, Pitch Extractor, and Voice Decoder;
-- a model-agnostic `ReferencePipeline`;
-- CI tests and a small real-time-factor smoke benchmark.
+- 16 kHz acoustic frontend;
+- 25 ms frame / 10 ms hop;
+- 80-bin log-mel filterbank;
+- explicit pre-emphasis and Povey-style windowing;
+- offline and streaming APIs;
+- chunk-boundary invariant output;
+- NumPy-only reference implementation designed for later C++/SIMD porting.
 
-The reference resampler is deliberately simple and is **not** intended to be the final production resampler.
+The important invariant is:
+
+```text
+offline(audio) == concat(stream(chunk_1), stream(chunk_2), ...)
+```
+
+within floating-point tolerance, regardless of irregular input chunk sizes.
+
+Benchmark it with:
+
+```bash
+python benchmarks/frontend.py
+```
 
 ## M1 executable baseline
 
@@ -73,6 +88,7 @@ pip install -e ".[dev]"
 ruff check .
 pytest -q
 python benchmarks/smoke.py
+python benchmarks/frontend.py
 ```
 
 Inspect a 16-bit PCM WAV:
@@ -84,7 +100,7 @@ voxera inspect input.wav
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC baseline:** real WAV-to-WAV reference conversion plus a reproducible benchmark contract. **In progress.**
+2. **M1 — Offline VC baseline:** real WAV-to-WAV reference conversion plus Voxera-native acoustic/content plumbing. **In progress.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
