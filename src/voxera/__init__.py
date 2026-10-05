@@ -51,4 +51,4 @@ __all__ = [
     "pitch_condition_features",
     "waveform_to_spectral_frames",
 ]
-__version__ = "0.1.0a9"
+__version__ = "0.1.0a10"

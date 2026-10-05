@@ -203,6 +203,26 @@ The full neural smoke now traverses every trainable M1 module and emits finite P
 python training/smoke_native_pipeline.py
 ```
 
+### Teacher cache and training targets
+
+The native graph is now paired with a reproducible teacher-extraction contract.
+MeanVC2 is pinned to commit `13acf84c1bf135ea5edad9c245b345289b06b33e`
+and its official preprocessing scripts produce:
+
+- Fast-U2++ BN: 256-d @ 40 ms;
+- WavLM + ECAPA speaker embedding: 256-d;
+- mel target: 80 bins @ 10 ms.
+
+Voxera validates all outputs, hashes every source WAV, and records teacher
+provenance before any training job can consume the cache.
+
+```bash
+sh tools/bootstrap_teacher.sh
+sh tools/prepare_teacher_cache.sh
+```
+
+See [docs/M1_TRAINING.md](docs/M1_TRAINING.md).
+
 ## M1 executable baseline
 
 M1 uses MeanVC2 through audio.cpp as a temporary quality/latency oracle. Neither project is vendored into Voxera.
@@ -244,7 +264,7 @@ python benchmarks/frontend.py
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture and orchestration complete; model training/quality validation in progress.**
+2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture, orchestration, and teacher-cache contract complete; model training/quality validation in progress.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.

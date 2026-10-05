@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "voxera"
-version = "0.1.0a9"
+version = "0.1.0a10"
 description = "Lightweight offline semantic-prosodic neural voice conversion engine for edge devices."
 readme = "README.md"
 requires-python = ">=3.10"
