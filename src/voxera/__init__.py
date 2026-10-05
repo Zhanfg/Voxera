@@ -13,6 +13,14 @@ from .native_pipeline import (
 )
 from .pipeline import ReferencePipeline
 from .pitch import PitchConfig, PitchTrack, StreamingYinPitchExtractor, YinPitchExtractor
+from .prosody import (
+    PROSODY_GLOBAL_DIM,
+    PROSODY_LOCAL_DIM,
+    PROSODY_STYLES,
+    NativeProsodyExtractor,
+    ProsodyTrack,
+    classify_prosody_style,
+)
 from .speaker import SpeakerEmbedding, cosine_similarity
 from .vocoder import (
     SpectralFrames,
@@ -36,7 +44,12 @@ __all__ = [
     "NativeOfflinePipeline",
     "PitchConfig",
     "PitchTrack",
+    "PROSODY_GLOBAL_DIM",
+    "PROSODY_LOCAL_DIM",
+    "PROSODY_STYLES",
+    "ProsodyTrack",
     "ReferencePipeline",
+    "NativeProsodyExtractor",
     "SpeakerEmbedding",
     "SpectralFrames",
     "SpectralSynthesisConfig",
@@ -46,9 +59,10 @@ __all__ = [
     "StreamingYinPitchExtractor",
     "YinPitchExtractor",
     "align_frame_conditions",
+    "classify_prosody_style",
     "cosine_similarity",
     "expected_mel_frames",
     "pitch_condition_features",
     "waveform_to_spectral_frames",
 ]
-__version__ = "0.1.0a14"
+__version__ = "0.2.0a1"
