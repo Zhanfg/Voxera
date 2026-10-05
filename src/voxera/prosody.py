@@ -173,7 +173,7 @@ class NativeProsodyExtractor:
             energy=energy,
             local=local,
         )
-        style, confidence = _classify_style(global_style)
+        style, confidence = classify_prosody_style(global_style)
 
         return ProsodyTrack(
             local=local,
@@ -312,7 +312,19 @@ def _global_descriptor(
     )
 
 
-def _classify_style(global_style: FloatArray) -> tuple[str, float]:
+def classify_prosody_style(global_style: FloatArray) -> tuple[str, float]:
+    """Map an 8-D acoustic style descriptor to a coarse delivery label."""
+
+    descriptor = np.asarray(global_style, dtype=np.float32)
+    if descriptor.shape != (PROSODY_GLOBAL_DIM,):
+        raise ValueError(
+            f"global_style must have shape [{PROSODY_GLOBAL_DIM}]"
+        )
+    if not np.all(np.isfinite(descriptor)):
+        raise ValueError("global_style contains non-finite values")
+
+    global_style = descriptor
+
     (
         _pitch_level,
         pitch_range,
