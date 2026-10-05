@@ -5,7 +5,6 @@ import random
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-import numpy as np
 import torch
 from torch.nn.utils import clip_grad_norm_
 
