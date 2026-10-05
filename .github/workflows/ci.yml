@@ -38,6 +38,7 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: python -m pip install --upgrade pip
+      - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -e ".[train]"
       - run: python training/smoke_contentnet.py
       - run: python training/smoke_timbrenet.py
