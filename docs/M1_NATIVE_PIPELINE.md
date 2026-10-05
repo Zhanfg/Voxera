@@ -74,3 +74,32 @@ Every conversion returns a compact shape trace:
 - final PCM samples.
 
 This is intended for regression tests and mobile performance diagnostics.
+
+
+## Exact duration contract
+
+Snipped-edge feature extraction naturally loses the final analysis-window tail.
+That is unacceptable for conversion because repeated utterances would slowly
+drift from the original timeline.
+
+Before source analysis, Voxera now computes the number of 10 ms mel frames
+needed to cover the original resampled waveform. It then derives the number of
+40 ms condition frames and right-pads **analysis audio only** until the 40 ms
+pitch window can produce the final required cadence frame.
+
+For example, a 16,000-sample source requires:
+
+```text
+100 output mel frames
+→ 25 condition frames
+→ dense frame indices 3, 7, ..., 99
+→ 16,480 analysis samples after right padding
+→ 16,000 generated/output samples
+```
+
+The generated waveform is finally cropped to the exact original resampled
+sample count. This means duration is preserved for arbitrary input lengths,
+including inputs that are not aligned to the 160-sample vocoder hop.
+
+The trace reports both the padded analysis length and pre-crop generated length
+so regressions remain visible rather than hidden.
