@@ -3,9 +3,9 @@ from __future__ import annotations
 import os
 import subprocess
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 
 @dataclass(frozen=True, slots=True)
