@@ -149,6 +149,46 @@ def build_teacher_cache_manifest(
     )
 
 
+
+def load_teacher_cache_manifest(manifest_path: Path) -> list[TeacherCacheRecord]:
+    """Load a validated teacher manifest with paths relative to its directory."""
+
+    manifest_path = manifest_path.resolve()
+    records: list[TeacherCacheRecord] = []
+    seen: set[str] = set()
+
+    with manifest_path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                payload = json.loads(stripped)
+                record = TeacherCacheRecord(**payload)
+            except (json.JSONDecodeError, TypeError) as exc:
+                raise ValueError(
+                    f"{manifest_path}:{line_number}: invalid teacher-cache record"
+                ) from exc
+
+            if record.utterance_id in seen:
+                raise ValueError(
+                    f"{manifest_path}:{line_number}: duplicate utterance id "
+                    f"{record.utterance_id}"
+                )
+            seen.add(record.utterance_id)
+            records.append(record)
+
+    if not records:
+        raise ValueError(f"teacher manifest is empty: {manifest_path}")
+    return records
+
+
+def resolve_teacher_cache_path(manifest_path: Path, stored_path: str) -> Path:
+    """Resolve one manifest-relative cache/source path."""
+
+    return (manifest_path.resolve().parent / stored_path).resolve()
+
+
 def _collect_files(directory: Path, suffix: str) -> dict[str, Path]:
     if not directory.is_dir():
         return {}
