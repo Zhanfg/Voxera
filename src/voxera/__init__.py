@@ -1,5 +1,6 @@
 """Voxera reference runtime."""
 
+from .conditioning import FrameConditions, align_frame_conditions, pitch_condition_features
 from .config import AudioConfig
 from .content import ContentCadence, StreamingCadenceSelector
 from .features import FbankConfig, FeatureBatch, LogMelFrontend, StreamingLogMelFrontend
@@ -12,6 +13,7 @@ __all__ = [
     "ContentCadence",
     "FbankConfig",
     "FeatureBatch",
+    "FrameConditions",
     "LogMelFrontend",
     "PitchConfig",
     "PitchTrack",
@@ -21,6 +23,8 @@ __all__ = [
     "StreamingLogMelFrontend",
     "StreamingYinPitchExtractor",
     "YinPitchExtractor",
+    "align_frame_conditions",
     "cosine_similarity",
+    "pitch_condition_features",
 ]
-__version__ = "0.1.0a4"
+__version__ = "0.1.0a5"

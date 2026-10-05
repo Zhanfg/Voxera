@@ -19,7 +19,7 @@ Lightweight offline semantic-prosodic neural voice conversion engine for edge de
 Audio
   ├─ Native Acoustic Frontend ─┐
   ├─ ContentNet ───────────────┤
-  ├─ Native F0 / Pitch ─────────┼─> Condition Fusion -> Voice Decoder -> PCM
+  ├─ Native F0 / Pitch ─────────┼─> Native Condition Fusion -> Voice Decoder -> PCM
   ├─ Prosody Encoder* ─────────┤
   └─ Semantic Sidecar* ────────┘
                     + TimbreNet Speaker Embedding
@@ -120,6 +120,23 @@ The first training stage distills MeanVC2's WavLM + ECAPA 256-dimensional speake
 python training/smoke_timbrenet.py
 ```
 
+### Condition Fusion
+
+ContentNet, Pitch and TimbreNet now meet in a compact content-conditioned fusion layer:
+
+- common-prefix time alignment before 40 ms cadence selection;
+- pitch encoded as log-F0 + voiced flag + periodicity;
+- 8 learned timbre tokens derived from the global speaker embedding;
+- content-to-timbre scaled dot-product attention;
+- gated residual fusion back to a 256-d decoder condition;
+- **630,720 parameters / about 2.41 MiB FP32**.
+
+See [docs/M1_CONDITIONING.md](docs/M1_CONDITIONING.md).
+
+```bash
+python training/smoke_condition_fusion.py
+```
+
 ## M1 executable baseline
 
 M1 uses MeanVC2 through audio.cpp as a temporary quality/latency oracle. Neither project is vendored into Voxera.
@@ -161,7 +178,7 @@ python benchmarks/frontend.py
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC baseline:** real WAV-to-WAV reference conversion plus Voxera-native acoustic/content/pitch/timbre plumbing. **In progress.**
+2. **M1 — Offline VC baseline:** real WAV-to-WAV reference conversion plus Voxera-native acoustic/content/pitch/timbre/conditioning plumbing. **In progress.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.

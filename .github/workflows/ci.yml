@@ -42,3 +42,4 @@ jobs:
       - run: pip install -e ".[train]"
       - run: python training/smoke_contentnet.py
       - run: python training/smoke_timbrenet.py
+      - run: python training/smoke_condition_fusion.py
