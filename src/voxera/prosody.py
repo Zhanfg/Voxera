@@ -13,7 +13,38 @@ FloatArray = NDArray[np.float32]
 
 PROSODY_LOCAL_DIM = 8
 PROSODY_GLOBAL_DIM = 8
+PROSODY_LOCAL_EMBED_DIM = 32
+PROSODY_GLOBAL_EMBED_DIM = 16
 PROSODY_STYLES = ("neutral", "rising", "emphatic", "animated", "subdued")
+
+
+@dataclass(frozen=True, slots=True)
+class ProsodyEmbedding:
+    """Learned local + phrase-level prosody representation for M2 conditioning."""
+
+    local: FloatArray
+    global_style: FloatArray
+
+    def __post_init__(self) -> None:
+        local = np.asarray(self.local, dtype=np.float32)
+        global_style = np.asarray(self.global_style, dtype=np.float32)
+        if local.ndim != 2 or local.shape[1] != PROSODY_LOCAL_EMBED_DIM:
+            raise ValueError(
+                f"local embedding must have shape [frames, {PROSODY_LOCAL_EMBED_DIM}]"
+            )
+        if global_style.shape != (PROSODY_GLOBAL_EMBED_DIM,):
+            raise ValueError(
+                "global style embedding must have shape "
+                f"[{PROSODY_GLOBAL_EMBED_DIM}]"
+            )
+        if not np.all(np.isfinite(local)) or not np.all(np.isfinite(global_style)):
+            raise ValueError("prosody embedding contains non-finite values")
+        object.__setattr__(self, "local", local)
+        object.__setattr__(self, "global_style", global_style)
+
+    @property
+    def frame_count(self) -> int:
+        return self.local.shape[0]
 
 
 @dataclass(frozen=True, slots=True)
