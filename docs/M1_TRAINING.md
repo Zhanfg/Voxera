@@ -108,6 +108,26 @@ LiteVocoder is trained independently from teacher mel aligned to the original
 All staged trainers now use actual-count gradient averaging for partial
 accumulation groups and write provenance-bearing atomic checkpoints.
 
+## Implemented joint refinement
+
+Stage 5 is executable:
+
+```bash
+sh tools/train_joint.sh
+```
+
+Joint refinement restores the newest staged checkpoints only when their teacher
+commit and manifest SHA-256 match the active teacher cache. It then trains the
+full five-model graph with four simultaneous constraints:
+
+- ContentNet vs Fast-U2++ BN;
+- TimbreNet vs WavLM+ECAPA embedding;
+- DecoderNet vs teacher mel;
+- LiteVocoder vs aligned source waveform/Fourier targets.
+
+The auxiliary content and speaker losses are intentionally retained during
+end-to-end optimization to limit representation collapse.
+
 ## Training order
 
 1. **ContentNet**
@@ -126,4 +146,4 @@ accumulation groups and write provenance-bearing atomic checkpoints.
    - low learning rate;
    - preserve content/speaker auxiliary losses to prevent entanglement.
 
-Stages 1 through 4 are implemented. Stage 5 is the remaining training-system step: joint refinement after usable staged checkpoints exist. Every stage consumes the validated Voxera manifest rather than raw directory assumptions.
+Stages 1 through 5 are implemented. The training-system code path is complete; the remaining M1 gates are producing real teacher caches/checkpoints on a sufficiently large licensed dataset and measuring conversion quality/latency against the MeanVC2 oracle.
