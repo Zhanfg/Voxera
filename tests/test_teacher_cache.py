@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from training.teacher_cache import (
+from voxera.teacher_cache import (
     MEANVC2_COMMIT,
     build_teacher_cache_manifest,
 )
