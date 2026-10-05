@@ -410,3 +410,29 @@ checkpoint used to initialize the run.
 CI constructs staged checkpoints with the real trainers and then executes one
 full joint backward/optimizer/checkpoint pass, validating the entire checkpoint
 chain end to end.
+
+
+## ProsodyNet bootstrap
+
+M2 introduces a teacher-free acoustic-style bootstrap stage:
+
+```bash
+sh tools/train_prosody.sh
+```
+
+It requires only ordinary WAV files. Voxera derives local/global pseudo-targets
+from pitch, periodicity, energy, pauses, final contour, and emphasis, then trains
+the compact ProsodyNet to reconstruct those descriptors while learning richer
+32-d local and 16-d phrase-level embeddings.
+
+The local ProsodyNet path is causal and must reproduce offline output exactly
+when evaluated in arbitrary chunks. The phrase-level embedding uses whole-phrase
+mean/std pooling and is intentionally offline until M5 adds streaming style
+state.
+
+The M2 conditioner is kept outside the stable M1 ConditionFusion block. Its
+output projection is initialized to zero, so an untrained conditioner has an
+exact identity effect on M1 decoder conditions.
+
+ProsodyNet checkpoints include a SHA-256 fingerprint of the WAV collection used
+for bootstrap training.

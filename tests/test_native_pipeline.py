@@ -7,6 +7,7 @@ from voxera.acoustic import MelSpectrogram
 from voxera.audio import AudioBuffer
 from voxera.conditioning import FrameConditions
 from voxera.native_pipeline import NativeModels, NativeOfflinePipeline
+from voxera.prosody import ProsodyEmbedding
 from voxera.speaker import SpeakerEmbedding
 from voxera.vocoder import waveform_to_spectral_frames
 
@@ -26,6 +27,36 @@ class DummySpeaker:
 class DummyCondition:
     def fuse(self, conditions: FrameConditions):
         return np.zeros((conditions.frame_count, 256), dtype=np.float32)
+
+
+class DummyProsody:
+    def encode(self, features, pitch):
+        assert features.shape[0] == pitch.shape[0]
+        frames = np.arange(3, features.shape[0], 4).size
+        return ProsodyEmbedding(
+            local=np.zeros((frames, 32), dtype=np.float32),
+            global_style=np.zeros(16, dtype=np.float32),
+        )
+
+
+class BadProsody:
+    def encode(self, features, pitch):
+        assert features.shape[0] == pitch.shape[0]
+        frames = max(0, np.arange(3, features.shape[0], 4).size - 1)
+        return ProsodyEmbedding(
+            local=np.zeros((frames, 32), dtype=np.float32),
+            global_style=np.zeros(16, dtype=np.float32),
+        )
+
+
+class DummyProsodyCondition:
+    def __init__(self):
+        self.called = False
+
+    def apply(self, conditions, prosody):
+        self.called = True
+        assert conditions.shape[0] == prosody.frame_count
+        return np.asarray(conditions, dtype=np.float32).copy()
 
 
 class DummyDecoder:
@@ -118,4 +149,59 @@ def test_empty_source_is_rejected() -> None:
     speaker = SpeakerEmbedding(np.ones(256, dtype=np.float32))
 
     with pytest.raises(ValueError, match="at least one sample"):
+        pipeline.convert(source, speaker)
+
+
+
+def test_optional_prosody_path_is_applied_without_duration_change() -> None:
+    conditioner = DummyProsodyCondition()
+    pipeline = NativeOfflinePipeline(
+        NativeModels(
+            content=DummyContent(),
+            speaker=DummySpeaker(),
+            condition=DummyCondition(),
+            decoder=DummyDecoder(),
+            vocoder=DummyVocoder(),
+            prosody=DummyProsody(),
+            prosody_condition=conditioner,
+        )
+    )
+    source = AudioBuffer(np.zeros(16_000, dtype=np.float32), 16_000)
+    speaker = SpeakerEmbedding(np.ones(256, dtype=np.float32))
+
+    result = pipeline.convert(source, speaker)
+
+    assert conditioner.called
+    assert result.audio.samples.shape == (16_000,)
+    assert result.trace.condition_frames == 25
+
+
+def test_prosody_models_must_be_configured_as_a_pair() -> None:
+    with pytest.raises(ValueError, match="provided together"):
+        NativeModels(
+            content=DummyContent(),
+            speaker=DummySpeaker(),
+            condition=DummyCondition(),
+            decoder=DummyDecoder(),
+            vocoder=DummyVocoder(),
+            prosody=DummyProsody(),
+        )
+
+
+def test_prosody_frame_mismatch_is_rejected() -> None:
+    pipeline = NativeOfflinePipeline(
+        NativeModels(
+            content=DummyContent(),
+            speaker=DummySpeaker(),
+            condition=DummyCondition(),
+            decoder=DummyDecoder(),
+            vocoder=DummyVocoder(),
+            prosody=BadProsody(),
+            prosody_condition=DummyProsodyCondition(),
+        )
+    )
+    source = AudioBuffer(np.zeros(16_000, dtype=np.float32), 16_000)
+    speaker = SpeakerEmbedding(np.ones(256, dtype=np.float32))
+
+    with pytest.raises(ValueError, match="one local embedding"):
         pipeline.convert(source, speaker)

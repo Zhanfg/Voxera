@@ -2,7 +2,7 @@
 
 Lightweight offline semantic-prosodic neural voice conversion engine for edge devices.
 
-> Status: **M1 / pre-alpha**. A real zero-shot WAV-to-WAV reference path is available through MeanVC2. Voxera now has its own streaming acoustic frontend, compact ContentNet, native pitch path, and compact target-speaker TimbreNet.
+> Status: **M2 / pre-alpha**. M1 architecture/training infrastructure is complete pending real-data training; M2 now adds an explicit lightweight prosody/style path.
 
 ## Goals
 
@@ -19,13 +19,41 @@ Lightweight offline semantic-prosodic neural voice conversion engine for edge de
 Audio
   ├─ Native Acoustic Frontend ─┐
   ├─ ContentNet ───────────────┤
-  ├─ Native F0 / Pitch ─────────┼─> Native Condition Fusion -> DecoderNet -> LiteVocoder -> PCM
-  ├─ Prosody Encoder* ─────────┤
-  └─ Semantic Sidecar* ────────┘
-                    + TimbreNet Speaker Embedding
+  ├─ Native F0 / Pitch ─────────┼─> Native Condition Fusion ─┐
+  ├─ Native Prosody / ProsodyNet ┤                            ├─> ProsodyConditioner -> DecoderNet -> LiteVocoder -> PCM
+  └─ Semantic Sidecar* ─────────┘                            │
+                    + TimbreNet Speaker Embedding ───────────┘
 ```
 
-The full M1 generation path is now represented by Voxera-native components. Prosody and semantic conditioning remain later milestones and will stay off the real-time critical path where possible.
+The full M1 generation path is represented by Voxera-native components. M2 now adds explicit local and phrase-level delivery conditioning; semantic interpretation remains a later sidecar.
+
+
+## M2 prosody progress
+
+Voxera now has a first explicit sentence-delivery path that does not require
+training data to function at the descriptor level.
+
+`NativeProsodyExtractor` produces:
+
+- 8 local acoustic delivery features at the 40 ms VC cadence;
+- 8 utterance-level style features;
+- a coarse delivery label: `neutral`, `rising`, `emphatic`,
+  `animated`, or `subdued`.
+
+The compact `ProsodyNet` consumes native fbank + pitch and produces a 32-d
+local prosody embedding plus a 16-d phrase-style embedding. Its first training
+stage is teacher-free: it reconstructs Voxera's own deterministic acoustic
+descriptors from ordinary WAV files.
+
+`ProsodyConditioner` is a separate zero-initialized residual adapter after the
+stable M1 fusion layer, so introducing M2 cannot perturb M1 output before the
+prosody adapter is trained.
+
+```bash
+sh tools/train_prosody.sh
+```
+
+See [docs/M2_PROSODY.md](docs/M2_PROSODY.md).
 
 ## M1 native progress
 
@@ -278,7 +306,7 @@ python benchmarks/frontend.py
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
 2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture/orchestration and full staged + joint training system implemented; real dataset training and quality validation are the remaining M1 gates.**
-3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
+3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis. **Core descriptor, ProsodyNet, zero-safe conditioner, and teacher-free bootstrap trainer implemented; real expressive-data training remains.**
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
 6. **M5 — Streaming:** chunked inference, cross-fade/state handling, latency and power optimization.
