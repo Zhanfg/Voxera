@@ -134,7 +134,7 @@ def train_acoustic_generator(
                 prediction,
                 target_mel.unsqueeze(0),
             )
-            (loss / cfg.gradient_accumulation).backward()
+            loss.backward()
 
             total_loss += float(loss.detach())
             seen += 1
@@ -142,6 +142,7 @@ def train_acoustic_generator(
             global_step += 1
 
             if accumulated == cfg.gradient_accumulation:
+                _average_gradients(parameters, accumulated)
                 clip_grad_norm_(parameters, cfg.max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
@@ -149,6 +150,7 @@ def train_acoustic_generator(
                 accumulated = 0
 
         if accumulated:
+            _average_gradients(parameters, accumulated)
             clip_grad_norm_(parameters, cfg.max_grad_norm)
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
@@ -244,7 +246,7 @@ def train_lite_vocoder(
                 phase,
                 waveform.unsqueeze(0),
             )
-            (loss / cfg.gradient_accumulation).backward()
+            loss.backward()
 
             total_loss += float(loss.detach())
             seen += 1
@@ -252,6 +254,7 @@ def train_lite_vocoder(
             global_step += 1
 
             if accumulated == cfg.gradient_accumulation:
+                _average_gradients(model.parameters(), accumulated)
                 clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
@@ -259,6 +262,7 @@ def train_lite_vocoder(
                 accumulated = 0
 
         if accumulated:
+            _average_gradients(model.parameters(), accumulated)
             clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
@@ -291,6 +295,18 @@ def train_lite_vocoder(
         )
 
     return summaries
+
+
+def _average_gradients(
+    parameters,
+    accumulated: int,
+) -> None:
+    if accumulated <= 0:
+        raise ValueError("accumulated must be positive")
+    scale = 1.0 / accumulated
+    for parameter in parameters:
+        if parameter.grad is not None:
+            parameter.grad.mul_(scale)
 
 
 def _selected_records(
