@@ -132,7 +132,7 @@ def train_contentnet(
                 aligned_teacher,
                 loss_config,
             )
-            (loss / cfg.gradient_accumulation).backward()
+            loss.backward()
 
             total_loss += float(loss.detach())
             seen += 1
@@ -143,6 +143,12 @@ def train_contentnet(
                 or index == len(order)
             )
             if should_step:
+                accumulated = (
+                    cfg.gradient_accumulation
+                    if index % cfg.gradient_accumulation == 0
+                    else index % cfg.gradient_accumulation
+                )
+                _average_gradients(model.parameters(), accumulated)
                 clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
@@ -233,7 +239,7 @@ def train_timbrenet(
                 second_view=second_view,
                 config=loss_config,
             )
-            (loss / cfg.gradient_accumulation).backward()
+            loss.backward()
 
             total_loss += float(loss.detach())
             seen += 1
@@ -244,6 +250,12 @@ def train_timbrenet(
                 or index == len(order)
             )
             if should_step:
+                accumulated = (
+                    cfg.gradient_accumulation
+                    if index % cfg.gradient_accumulation == 0
+                    else index % cfg.gradient_accumulation
+                )
+                _average_gradients(model.parameters(), accumulated)
                 clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
@@ -273,6 +285,18 @@ def train_timbrenet(
         )
 
     return summaries
+
+
+def _average_gradients(
+    parameters,
+    accumulated: int,
+) -> None:
+    if accumulated <= 0:
+        raise ValueError("accumulated must be positive")
+    scale = 1.0 / accumulated
+    for parameter in parameters:
+        if parameter.grad is not None:
+            parameter.grad.mul_(scale)
 
 
 def _native_features(
