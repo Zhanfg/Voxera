@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -188,9 +189,7 @@ def _sha256(path: Path) -> str:
 
 
 def _manifest_relative(path: Path, manifest_dir: Path) -> str:
-    return Path(
-        __import__("os").path.relpath(path, start=manifest_dir.resolve())
-    ).as_posix()
+    return Path(os.path.relpath(path, start=manifest_dir.resolve())).as_posix()
 
 
 def build_parser() -> argparse.ArgumentParser:
