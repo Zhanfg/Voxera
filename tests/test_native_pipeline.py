@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from voxera.acoustic import MelSpectrogram
 from voxera.audio import AudioBuffer
@@ -52,7 +53,7 @@ def _pipeline() -> NativeOfflinePipeline:
     )
 
 
-def test_end_to_end_pipeline_produces_pcm_and_trace() -> None:
+def test_end_to_end_pipeline_preserves_exact_duration() -> None:
     source = AudioBuffer(np.zeros(16_000, dtype=np.float32), 16_000)
     reference = AudioBuffer(np.zeros(8_000, dtype=np.float32), 16_000)
 
@@ -60,13 +61,30 @@ def test_end_to_end_pipeline_produces_pcm_and_trace() -> None:
 
     assert result.audio.sample_rate == 16_000
     assert result.trace.source_samples == 16_000
-    assert result.trace.source_feature_frames == 98
-    assert result.trace.pitch_frames == 97
-    assert result.trace.condition_frames == 24
-    assert result.trace.mel_frames == 96
-    assert result.trace.spectral_frames == 96
-    assert result.trace.output_samples == 96 * 160
-    assert result.audio.samples.shape == (15_360,)
+    assert result.trace.analysis_samples == 16_480
+    assert result.trace.source_feature_frames == 101
+    assert result.trace.pitch_frames == 100
+    assert result.trace.condition_frames == 25
+    assert result.trace.mel_frames == 100
+    assert result.trace.spectral_frames == 100
+    assert result.trace.generated_samples == 16_000
+    assert result.trace.output_samples == 16_000
+    assert result.audio.samples.shape == (16_000,)
+
+
+@pytest.mark.parametrize("sample_count", [1, 159, 160, 161, 15_999, 16_001, 23_777])
+def test_arbitrary_source_lengths_are_preserved(sample_count: int) -> None:
+    pipeline = _pipeline()
+    source = AudioBuffer(np.zeros(sample_count, dtype=np.float32), 16_000)
+    speaker = SpeakerEmbedding(np.ones(256, dtype=np.float32))
+
+    result = pipeline.convert(source, speaker)
+
+    assert result.trace.source_samples == sample_count
+    assert result.trace.output_samples == sample_count
+    assert result.audio.samples.shape == (sample_count,)
+    assert result.trace.generated_samples >= sample_count
+    assert result.trace.mel_frames % 4 == 0
 
 
 def test_prepared_speaker_can_be_reused() -> None:
@@ -90,4 +108,14 @@ def test_pipeline_resamples_source_and_reference() -> None:
     result = pipeline.convert_with_reference(source, reference)
 
     assert result.trace.source_samples == 16_000
+    assert result.trace.output_samples == 16_000
     assert result.audio.sample_rate == 16_000
+
+
+def test_empty_source_is_rejected() -> None:
+    pipeline = _pipeline()
+    source = AudioBuffer(np.empty(0, dtype=np.float32), 16_000)
+    speaker = SpeakerEmbedding(np.ones(256, dtype=np.float32))
+
+    with pytest.raises(ValueError, match="at least one sample"):
+        pipeline.convert(source, speaker)
