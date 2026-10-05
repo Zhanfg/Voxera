@@ -8,7 +8,6 @@ from decoder import DecoderNet
 from lite_vocoder import LiteVocoder
 from timbrenet import TimbreNet
 
-from voxera.speaker import SpeakerEmbedding
 from voxera.vocoder import SpectralFrames, StreamingISTFT
 
 
