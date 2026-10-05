@@ -90,6 +90,24 @@ Encoder checkpoints record the exact teacher commit and SHA-256 of the manifest
 used for that run. This prevents an old checkpoint from being mistaken for one
 trained against a newer cache.
 
+## Implemented generator training
+
+The acoustic and waveform stages are also executable:
+
+```bash
+sh tools/train_generators.sh
+```
+
+The first acoustic pass trains `ConditionFusion + DecoderNet` directly from
+teacher BN, teacher speaker embedding, native source pitch, and teacher mel.
+This removes student-encoder noise from the initial decoder optimization.
+
+LiteVocoder is trained independently from teacher mel aligned to the original
+16 kHz source waveform. Each mel frame maps to one 160-sample waveform hop.
+
+All staged trainers now use actual-count gradient averaging for partial
+accumulation groups and write provenance-bearing atomic checkpoints.
+
 ## Training order
 
 1. **ContentNet**
@@ -108,4 +126,4 @@ trained against a newer cache.
    - low learning rate;
    - preserve content/speaker auxiliary losses to prevent entanglement.
 
-Stages 1 and 2 are implemented. Later stages should follow the same rule: consume only the validated Voxera manifest, never raw directory assumptions.
+Stages 1 through 4 are implemented. Stage 5 is the remaining training-system step: joint refinement after usable staged checkpoints exist. Every stage consumes the validated Voxera manifest rather than raw directory assumptions.
