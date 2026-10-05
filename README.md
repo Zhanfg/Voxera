@@ -19,13 +19,13 @@ Lightweight offline semantic-prosodic neural voice conversion engine for edge de
 Audio
   ├─ Native Acoustic Frontend ─┐
   ├─ ContentNet ───────────────┤
-  ├─ Native F0 / Pitch ─────────┼─> Native Condition Fusion -> DecoderNet -> Vocoder* -> PCM
+  ├─ Native F0 / Pitch ─────────┼─> Native Condition Fusion -> DecoderNet -> LiteVocoder -> PCM
   ├─ Prosody Encoder* ─────────┤
   └─ Semantic Sidecar* ────────┘
                     + TimbreNet Speaker Embedding
 ```
 
-`*` not Voxera-native yet; the vocoder remains the main missing M1 generation component. Semantic analysis will be asynchronous so it never blocks the real-time audio path.
+The full M1 generation path is now represented by Voxera-native components. Prosody and semantic conditioning remain later milestones and will stay off the real-time critical path where possible.
 
 ## M1 native progress
 
@@ -155,6 +155,27 @@ The direct frame expansion avoids transposed-convolution overlap state, so strea
 python training/smoke_decoder.py
 ```
 
+### LiteVocoder
+
+The final M1 waveform stage is a compact causal Fourier vocoder:
+
+- 80-bin mel input at 10 ms;
+- hidden width 192;
+- 8 causal depthwise temporal blocks;
+- predicts 161 log-magnitude + 161 phase values per frame;
+- native 320-point iFFT with 160-sample hop;
+- explicit fixed overlap-add state;
+- **1,271,554 parameters / about 4.85 MiB FP32**.
+
+Unlike a time-domain transposed-convolution vocoder, the neural graph stops at spectral parameters. FFT and overlap-add stay in deterministic runtime DSP, which simplifies ONNX/QNN deployment and makes chunk boundaries inspectable.
+
+The current runtime target transform can reconstruct its own spectral targets with sub-micro-scale numerical error and exactly preserves chunked-vs-single-call output. See [docs/M1_VOCODER.md](docs/M1_VOCODER.md).
+
+```bash
+python training/smoke_vocoder.py
+python training/export_lite_vocoder.py --output artifacts/lite_vocoder.onnx
+```
+
 ## M1 executable baseline
 
 M1 uses MeanVC2 through audio.cpp as a temporary quality/latency oracle. Neither project is vendored into Voxera.
@@ -196,7 +217,7 @@ python benchmarks/frontend.py
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC baseline:** real WAV-to-WAV reference conversion plus Voxera-native acoustic/content/pitch/timbre/conditioning/decoder plumbing. **In progress.**
+2. **M1 — Offline VC architecture:** native acoustic/content/pitch/timbre/conditioning/decoder/vocoder path plus MeanVC2 quality oracle. **Architecture complete; training/integration in progress.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
