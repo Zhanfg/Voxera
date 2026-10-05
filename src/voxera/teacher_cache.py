@@ -38,6 +38,109 @@ class TeacherCacheSummary:
     mel_frames: int
 
 
+@dataclass(frozen=True, slots=True)
+class TeacherCacheInvalidationSummary:
+    stale_utterances: tuple[str, ...]
+    invalidated_outputs: int
+    teacher_reset: bool
+
+
+
+def invalidate_stale_teacher_cache(
+    wav_dir: Path,
+    cache_dir: Path,
+    *,
+    manifest_path: Path | None = None,
+    provenance_path: Path | None = None,
+    expected_teacher_commit: str = MEANVC2_COMMIT,
+) -> TeacherCacheInvalidationSummary:
+    """Remove cached teacher arrays that cannot be proven fresh.
+
+    MeanVC2's extractors intentionally skip existing .npy files. This guard runs
+    before extraction so a replaced WAV can never silently reuse stale teacher
+    features.
+    """
+
+    wav_dir = wav_dir.resolve()
+    cache_dir = cache_dir.resolve()
+    manifest_path = manifest_path or cache_dir / "manifest.jsonl"
+    provenance_path = provenance_path or cache_dir / "provenance.json"
+
+    wavs = _collect_files(wav_dir, ".wav")
+    current_hashes = {
+        utterance_id: _sha256(path)
+        for utterance_id, path in wavs.items()
+    }
+    cached_ids = set()
+    for subdirectory in ("bn", "mel", "speaker"):
+        cached_ids.update(_collect_files(cache_dir / subdirectory, ".npy"))
+
+    previous_hashes: dict[str, str] = {}
+    manifest_trusted = False
+    if manifest_path.is_file():
+        try:
+            with manifest_path.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    payload = json.loads(stripped)
+                    utterance_id = payload["utterance_id"]
+                    wav_sha256 = payload["wav_sha256"]
+                    if not isinstance(utterance_id, str) or not isinstance(wav_sha256, str):
+                        raise ValueError("invalid prior manifest hash record")
+                    previous_hashes[utterance_id] = wav_sha256
+            manifest_trusted = bool(previous_hashes)
+        except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+            previous_hashes = {}
+            manifest_trusted = False
+
+    teacher_reset = False
+    if provenance_path.is_file():
+        try:
+            provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+            teacher_reset = (
+                provenance.get("teacher", {}).get("commit")
+                != expected_teacher_commit
+            )
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            teacher_reset = True
+    elif cached_ids:
+        teacher_reset = True
+
+    if not manifest_trusted and cached_ids:
+        teacher_reset = True
+
+    stale: set[str] = set()
+    if teacher_reset:
+        stale.update(cached_ids)
+        stale.update(current_hashes)
+    else:
+        for utterance_id, current_hash in current_hashes.items():
+            if previous_hashes.get(utterance_id) != current_hash:
+                stale.add(utterance_id)
+        stale.update(set(previous_hashes) - set(current_hashes))
+        stale.update(cached_ids - set(current_hashes))
+
+    invalidated_outputs = 0
+    for utterance_id in sorted(stale):
+        for subdirectory in ("bn", "mel", "speaker"):
+            path = cache_dir / subdirectory / f"{utterance_id}.npy"
+            if path.exists():
+                path.unlink()
+                invalidated_outputs += 1
+
+    if stale or teacher_reset:
+        manifest_path.unlink(missing_ok=True)
+        provenance_path.unlink(missing_ok=True)
+
+    return TeacherCacheInvalidationSummary(
+        stale_utterances=tuple(sorted(stale)),
+        invalidated_outputs=invalidated_outputs,
+        teacher_reset=teacher_reset,
+    )
+
+
 def build_teacher_cache_manifest(
     wav_dir: Path,
     cache_dir: Path,
