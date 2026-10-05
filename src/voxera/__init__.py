@@ -8,6 +8,12 @@ from .features import FbankConfig, FeatureBatch, LogMelFrontend, StreamingLogMel
 from .pipeline import ReferencePipeline
 from .pitch import PitchConfig, PitchTrack, StreamingYinPitchExtractor, YinPitchExtractor
 from .speaker import SpeakerEmbedding, cosine_similarity
+from .vocoder import (
+    SpectralFrames,
+    SpectralSynthesisConfig,
+    StreamingISTFT,
+    waveform_to_spectral_frames,
+)
 
 __all__ = [
     "AudioConfig",
@@ -22,7 +28,10 @@ __all__ = [
     "PitchTrack",
     "ReferencePipeline",
     "SpeakerEmbedding",
+    "SpectralFrames",
+    "SpectralSynthesisConfig",
     "StreamingCadenceSelector",
+    "StreamingISTFT",
     "StreamingLogMelFrontend",
     "StreamingYinPitchExtractor",
     "YinPitchExtractor",
@@ -30,5 +39,6 @@ __all__ = [
     "cosine_similarity",
     "expected_mel_frames",
     "pitch_condition_features",
+    "waveform_to_spectral_frames",
 ]
-__version__ = "0.1.0a6"
+__version__ = "0.1.0a7"
