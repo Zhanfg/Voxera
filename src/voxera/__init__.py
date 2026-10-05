@@ -1,5 +1,6 @@
 """Voxera reference runtime."""
 
+from .acoustic import MelConfig, MelSpectrogram, expected_mel_frames
 from .conditioning import FrameConditions, align_frame_conditions, pitch_condition_features
 from .config import AudioConfig
 from .content import ContentCadence, StreamingCadenceSelector
@@ -15,6 +16,8 @@ __all__ = [
     "FeatureBatch",
     "FrameConditions",
     "LogMelFrontend",
+    "MelConfig",
+    "MelSpectrogram",
     "PitchConfig",
     "PitchTrack",
     "ReferencePipeline",
@@ -25,6 +28,7 @@ __all__ = [
     "YinPitchExtractor",
     "align_frame_conditions",
     "cosine_similarity",
+    "expected_mel_frames",
     "pitch_condition_features",
 ]
-__version__ = "0.1.0a5"
+__version__ = "0.1.0a6"
