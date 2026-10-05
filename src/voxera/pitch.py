@@ -101,7 +101,6 @@ class YinPitchExtractor:
 
     def __init__(self, config: PitchConfig | None = None) -> None:
         self.config = config or PitchConfig()
-        self._window = np.hanning(self.config.frame_samples).astype(np.float32)
 
     def extract(self, samples: FloatArray) -> PitchTrack:
         audio = _validate_audio(samples)
@@ -139,12 +138,12 @@ class YinPitchExtractor:
         if rms < config.energy_floor:
             return 0.0, 0.0
 
-        windowed = centered * self._window
+        analysis = centered
         max_lag = config.max_lag
         difference = np.zeros(max_lag + 1, dtype=np.float64)
 
         for lag in range(1, max_lag + 1):
-            delta = windowed[:-lag] - windowed[lag:]
+            delta = analysis[:-lag] - analysis[lag:]
             difference[lag] = float(np.dot(delta, delta))
 
         cmndf = np.ones(max_lag + 1, dtype=np.float64)
