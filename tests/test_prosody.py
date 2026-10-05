@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from voxera.pitch import PitchTrack
-from voxera.prosody import NativeProsodyExtractor, PROSODY_GLOBAL_DIM, PROSODY_LOCAL_DIM
+from voxera.prosody import PROSODY_GLOBAL_DIM, PROSODY_LOCAL_DIM, NativeProsodyExtractor
 
 
 def _track(
