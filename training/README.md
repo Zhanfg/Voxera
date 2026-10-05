@@ -365,3 +365,48 @@ state, configs, epoch/global step, pinned MeanVC2 commit, and manifest SHA-256.
 
 CI executes a real one-record CPU training pass for both generator stages,
 including backward propagation and checkpoint validation.
+
+
+## Joint refinement
+
+After staged checkpoints exist, run the full native graph with:
+
+```bash
+sh tools/train_joint.sh
+```
+
+The command automatically selects the newest epoch checkpoint for ContentNet,
+TimbreNet, the acoustic generator, and LiteVocoder from
+`artifacts/checkpoints/`.
+
+Before loading any weights, joint training verifies that every staged checkpoint:
+
+- uses checkpoint schema 1;
+- has the expected component type;
+- records the pinned MeanVC2 teacher commit;
+- was trained against the exact current teacher manifest SHA-256.
+
+The full graph is then optimized as:
+
+```text
+native fbank → ContentNet ───────────────────────────────┐
+native fbank → TimbreNet ────────────────┐              │
+native pitch ─────────────────────────────┼→ Fusion → Decoder → LiteVocoder
+                                          │              │          │
+teacher speaker ─ timbre auxiliary loss ──┘              │          │
+teacher BN ───── content auxiliary loss ─────────────────┘          │
+teacher mel ──── mel reconstruction loss ───────────────────────────┤
+source PCM ───── waveform/Fourier reconstruction loss ──────────────┘
+```
+
+Default joint learning rate is intentionally lower than the staged rates.
+Content and timbre auxiliary losses remain active so end-to-end waveform
+optimization cannot freely collapse the disentangled representations.
+
+Joint checkpoints contain all five model states, optimizer state, model/train
+configuration, manifest provenance, and SHA-256 hashes of every staged
+checkpoint used to initialize the run.
+
+CI constructs staged checkpoints with the real trainers and then executes one
+full joint backward/optimizer/checkpoint pass, validating the entire checkpoint
+chain end to end.
