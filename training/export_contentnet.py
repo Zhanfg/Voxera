@@ -4,7 +4,6 @@ import argparse
 from pathlib import Path
 
 import torch
-
 from contentnet import CausalContentNet, ContentNetConfig
 from torch import Tensor, nn
 
