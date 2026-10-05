@@ -12,6 +12,7 @@ These components are **not vendored** into Voxera and are not required by the co
 
 - **audio.cpp** — Apache-2.0. Used as the executable native reference runtime for M1.
 - **MeanVC2** — Apache-2.0. Used as the M1 zero-shot voice-conversion teacher/reference model.
+- **Vocos** — MIT. Used as the vocoder quality/teacher reference. Vocos source code and pretrained weights are not vendored into the Voxera runtime.
 
 Reference assets live below `.cache/reference/` and are excluded from Git. Their exact runtime commit is recorded locally by `tools/bootstrap_reference.sh`.
 

@@ -183,3 +183,50 @@ python training/smoke_decoder.py
 
 The smoke test verifies exact offline/streaming agreement across irregular
 condition chunks.
+
+
+## LiteVocoder
+
+`LiteVocoder` maps 10 ms mel frames to Fourier synthesis parameters.
+
+### Contract
+
+```text
+80-bin mel @ 10 ms
+       ↓
+80 → 192 projection
+       ↓
+8 causal depthwise TCN blocks
+       ↓
+192 → 322 spectral head
+       ↓
+161 log-magnitude + 161 phase
+       ↓
+native 320-point iFFT + 50% overlap-add
+       ↓
+160 PCM samples per frame
+```
+
+The default neural generator has **1,271,554 parameters** (about **4.85 MiB FP32**).
+
+The FFT is intentionally outside the neural graph. This keeps ONNX export
+limited to ordinary linear/normalization/convolution operations while the
+runtime owns the deterministic overlap state.
+
+### Initial loss
+
+The first training objective combines:
+
+- log-magnitude L1;
+- magnitude-weighted circular phase distance;
+- waveform L1 after differentiable Fourier reconstruction.
+
+A later quality stage may add multi-resolution STFT and adversarial feature
+matching without changing the deployed generator topology.
+
+### Smoke and export
+
+```bash
+python training/smoke_vocoder.py
+python training/export_lite_vocoder.py --output artifacts/lite_vocoder.onnx
+```
