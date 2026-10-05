@@ -6,7 +6,16 @@ Voxera's core source code is Apache-2.0. Third-party code and model weights must
 
 - NumPy — BSD-3-Clause.
 
-No pretrained model weights are committed in the Phase 0 scaffold.
+## M1 reference-only dependencies
+
+These components are **not vendored** into Voxera and are not required by the core package:
+
+- **audio.cpp** — Apache-2.0. Used as the executable native reference runtime for M1.
+- **MeanVC2** — Apache-2.0. Used as the M1 zero-shot voice-conversion teacher/reference model.
+
+Reference assets live below `.cache/reference/` and are excluded from Git. Their exact runtime commit is recorded locally by `tools/bootstrap_reference.sh`.
+
+No pretrained third-party model weights are committed to this repository.
 
 ## Integration rule
 
