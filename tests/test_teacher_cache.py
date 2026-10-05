@@ -58,10 +58,15 @@ def test_manifest_records_valid_teacher_contract(tmp_path: Path) -> None:
     assert all(row["mel_dim"] == 80 for row in rows)
     assert all(row["speaker_dim"] == 256 for row in rows)
     assert all(len(row["wav_sha256"]) == 64 for row in rows)
+    assert all((cache_dir / row["wav"]).resolve().is_file() for row in rows)
+    assert all((cache_dir / row["bn"]).resolve().is_file() for row in rows)
+    assert all((cache_dir / row["mel"]).resolve().is_file() for row in rows)
+    assert all((cache_dir / row["speaker"]).resolve().is_file() for row in rows)
 
     provenance = json.loads((cache_dir / "provenance.json").read_text())
     assert provenance["teacher"]["commit"] == MEANVC2_COMMIT
     assert provenance["contracts"]["bn"]["cadence_ms"] == 40
+    assert provenance["path_base"] == "manifest_directory"
 
 
 def test_missing_teacher_output_is_rejected(tmp_path: Path) -> None:
