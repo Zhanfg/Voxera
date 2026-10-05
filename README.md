@@ -220,11 +220,14 @@ provenance before any training job can consume the cache.
 sh tools/bootstrap_teacher.sh
 sh tools/prepare_teacher_cache.sh
 sh tools/train_encoders.sh
+sh tools/train_generators.sh
 ```
 
-ContentNet and TimbreNet now have real manifest-driven trainers with gradient
-accumulation, clipping, reproducible shuffling, atomic checkpoints, and embedded
-teacher/manifest provenance. CI runs one real CPU training step for both.
+All four M1 neural training stages are now executable: ContentNet, TimbreNet,
+ConditionFusion+DecoderNet, and LiteVocoder. The generator stages deliberately
+start from teacher BN/speaker/mel targets so they can converge before joint
+student refinement. CI runs real CPU backward/optimizer/checkpoint passes for
+both encoder and generator stages.
 
 See [docs/M1_TRAINING.md](docs/M1_TRAINING.md).
 
@@ -269,7 +272,7 @@ python benchmarks/frontend.py
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture/orchestration complete; teacher cache and encoder training implemented; decoder/vocoder training and quality validation in progress.**
+2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture/orchestration and all staged M1 trainers implemented; dataset training, joint refinement, and quality validation in progress.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
