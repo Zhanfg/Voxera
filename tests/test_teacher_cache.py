@@ -57,6 +57,8 @@ def test_manifest_records_valid_teacher_contract(tmp_path: Path) -> None:
     assert all(row["bn_dim"] == 256 for row in rows)
     assert all(row["mel_dim"] == 80 for row in rows)
     assert all(row["speaker_dim"] == 256 for row in rows)
+    assert all(row["source_sample_rate"] == 16_000 for row in rows)
+    assert all(row["source_samples"] == 1_600 for row in rows)
     assert all(len(row["wav_sha256"]) == 64 for row in rows)
     assert all((cache_dir / row["wav"]).resolve().is_file() for row in rows)
     assert all((cache_dir / row["bn"]).resolve().is_file() for row in rows)

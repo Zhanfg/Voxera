@@ -70,6 +70,26 @@ The bootstrap pins the upstream source. Teacher preprocessing dependencies are
 kept outside Voxera's runtime environment because MeanVC2's WavLM/ECAPA stack
 is intentionally heavy and is needed only while producing training targets.
 
+## Implemented encoder training
+
+The first two stages are executable:
+
+```bash
+sh tools/train_encoders.sh
+```
+
+The training loop consumes only `manifest.jsonl`, recomputes Voxera-native
+frontend features from the source WAV, and uses the cached MeanVC2 tensors as
+supervision.
+
+ContentNet aligns its dense 10 ms representation to the teacher's 40 ms BN
+cadence using the common valid prefix. TimbreNet trains from two independent
+reference crops against the normalized WavLM+ECAPA embedding.
+
+Encoder checkpoints record the exact teacher commit and SHA-256 of the manifest
+used for that run. This prevents an old checkpoint from being mistaken for one
+trained against a newer cache.
+
 ## Training order
 
 1. **ContentNet**
@@ -88,5 +108,4 @@ is intentionally heavy and is needed only while producing training targets.
    - low learning rate;
    - preserve content/speaker auxiliary losses to prevent entanglement.
 
-Training code should consume only the validated Voxera manifest, never raw
-directory assumptions.
+Stages 1 and 2 are implemented. Later stages should follow the same rule: consume only the validated Voxera manifest, never raw directory assumptions.

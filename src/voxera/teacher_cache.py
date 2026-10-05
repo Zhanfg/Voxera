@@ -8,6 +8,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .audio import load_wav
+
 MEANVC2_REPOSITORY = "https://github.com/ASLP-lab/MeanVC2.git"
 MEANVC2_COMMIT = "13acf84c1bf135ea5edad9c245b345289b06b33e"
 
@@ -17,6 +19,8 @@ class TeacherCacheRecord:
     utterance_id: str
     wav: str
     wav_sha256: str
+    source_sample_rate: int
+    source_samples: int
     bn: str
     bn_frames: int
     bn_dim: int
@@ -68,6 +72,10 @@ def build_teacher_cache_manifest(
     total_mel_frames = 0
 
     for utterance_id in sorted(expected):
+        source_audio = load_wav(wavs[utterance_id])
+        if source_audio.samples.size == 0:
+            raise ValueError(f"{utterance_id}: source WAV is empty")
+
         bn = _load_finite_array(bns[utterance_id], "BN")
         mel = _load_finite_array(mels[utterance_id], "mel")
         speaker = _load_finite_array(speakers[utterance_id], "speaker")
@@ -93,6 +101,8 @@ def build_teacher_cache_manifest(
                 utterance_id=utterance_id,
                 wav=_manifest_relative(wavs[utterance_id], manifest_path.parent),
                 wav_sha256=_sha256(wavs[utterance_id]),
+                source_sample_rate=source_audio.sample_rate,
+                source_samples=int(source_audio.samples.size),
                 bn=_manifest_relative(bns[utterance_id], manifest_path.parent),
                 bn_frames=int(bn.shape[0]),
                 bn_dim=int(bn.shape[1]),
@@ -137,6 +147,46 @@ def build_teacher_cache_manifest(
         bn_frames=total_bn_frames,
         mel_frames=total_mel_frames,
     )
+
+
+
+def load_teacher_cache_manifest(manifest_path: Path) -> list[TeacherCacheRecord]:
+    """Load a validated teacher manifest with paths relative to its directory."""
+
+    manifest_path = manifest_path.resolve()
+    records: list[TeacherCacheRecord] = []
+    seen: set[str] = set()
+
+    with manifest_path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                payload = json.loads(stripped)
+                record = TeacherCacheRecord(**payload)
+            except (json.JSONDecodeError, TypeError) as exc:
+                raise ValueError(
+                    f"{manifest_path}:{line_number}: invalid teacher-cache record"
+                ) from exc
+
+            if record.utterance_id in seen:
+                raise ValueError(
+                    f"{manifest_path}:{line_number}: duplicate utterance id "
+                    f"{record.utterance_id}"
+                )
+            seen.add(record.utterance_id)
+            records.append(record)
+
+    if not records:
+        raise ValueError(f"teacher manifest is empty: {manifest_path}")
+    return records
+
+
+def resolve_teacher_cache_path(manifest_path: Path, stored_path: str) -> Path:
+    """Resolve one manifest-relative cache/source path."""
+
+    return (manifest_path.resolve().parent / stored_path).resolve()
 
 
 def _collect_files(directory: Path, suffix: str) -> dict[str, Path]:

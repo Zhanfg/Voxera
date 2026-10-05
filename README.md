@@ -219,7 +219,12 @@ provenance before any training job can consume the cache.
 ```bash
 sh tools/bootstrap_teacher.sh
 sh tools/prepare_teacher_cache.sh
+sh tools/train_encoders.sh
 ```
+
+ContentNet and TimbreNet now have real manifest-driven trainers with gradient
+accumulation, clipping, reproducible shuffling, atomic checkpoints, and embedded
+teacher/manifest provenance. CI runs one real CPU training step for both.
 
 See [docs/M1_TRAINING.md](docs/M1_TRAINING.md).
 
@@ -264,7 +269,7 @@ python benchmarks/frontend.py
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture, orchestration, and teacher-cache contract complete; model training/quality validation in progress.**
+2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture/orchestration complete; teacher cache and encoder training implemented; decoder/vocoder training and quality validation in progress.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
