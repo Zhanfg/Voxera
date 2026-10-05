@@ -15,9 +15,12 @@ from .pipeline import ReferencePipeline
 from .pitch import PitchConfig, PitchTrack, StreamingYinPitchExtractor, YinPitchExtractor
 from .prosody import (
     PROSODY_GLOBAL_DIM,
+    PROSODY_GLOBAL_EMBED_DIM,
     PROSODY_LOCAL_DIM,
+    PROSODY_LOCAL_EMBED_DIM,
     PROSODY_STYLES,
     NativeProsodyExtractor,
+    ProsodyEmbedding,
     ProsodyTrack,
     classify_prosody_style,
 )
@@ -45,8 +48,11 @@ __all__ = [
     "PitchConfig",
     "PitchTrack",
     "PROSODY_GLOBAL_DIM",
+    "PROSODY_GLOBAL_EMBED_DIM",
     "PROSODY_LOCAL_DIM",
+    "PROSODY_LOCAL_EMBED_DIM",
     "PROSODY_STYLES",
+    "ProsodyEmbedding",
     "ProsodyTrack",
     "ReferencePipeline",
     "NativeProsodyExtractor",
