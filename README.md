@@ -2,7 +2,7 @@
 
 Lightweight offline semantic-prosodic neural voice conversion engine for edge devices.
 
-> Status: **M1 / pre-alpha**. A real zero-shot WAV-to-WAV reference path is available through MeanVC2. Voxera now has its own streaming acoustic frontend, compact native ContentNet, and a dependency-light native pitch path.
+> Status: **M1 / pre-alpha**. A real zero-shot WAV-to-WAV reference path is available through MeanVC2. Voxera now has its own streaming acoustic frontend, compact ContentNet, native pitch path, and compact target-speaker TimbreNet.
 
 ## Goals
 
@@ -22,7 +22,7 @@ Audio
   ├─ Native F0 / Pitch ─────────┼─> Condition Fusion -> Voice Decoder -> PCM
   ├─ Prosody Encoder* ─────────┤
   └─ Semantic Sidecar* ────────┘
-                    + Speaker Embedding
+                    + TimbreNet Speaker Embedding
 ```
 
 `*` planned for later milestones. Semantic analysis will be asynchronous so it never blocks the real-time audio path.
@@ -103,6 +103,23 @@ A later compact PitchNet can refine this track in noisy or difficult speech whil
 python benchmarks/pitch.py
 ```
 
+### TimbreNet
+
+The target-reference speaker path now has a Voxera-native compact model design:
+
+- 80-bin log-mel input;
+- 160 hidden channels;
+- 8 depthwise temporal residual blocks;
+- attentive statistics pooling;
+- 256-d L2-normalized speaker embedding;
+- **949,473 parameters / about 3.62 MiB FP32**.
+
+The first training stage distills MeanVC2's WavLM + ECAPA 256-dimensional speaker embedding, with multi-crop consistency to reduce phonetic/reference-length leakage. See [docs/M1_TIMBRE.md](docs/M1_TIMBRE.md).
+
+```bash
+python training/smoke_timbrenet.py
+```
+
 ## M1 executable baseline
 
 M1 uses MeanVC2 through audio.cpp as a temporary quality/latency oracle. Neither project is vendored into Voxera.
@@ -144,7 +161,7 @@ python benchmarks/frontend.py
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC baseline:** real WAV-to-WAV reference conversion plus Voxera-native acoustic/content/pitch plumbing. **In progress.**
+2. **M1 — Offline VC baseline:** real WAV-to-WAV reference conversion plus Voxera-native acoustic/content/pitch/timbre plumbing. **In progress.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
