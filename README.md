@@ -217,18 +217,22 @@ Voxera validates all outputs, hashes every source WAV, and records teacher
 provenance before any training job can consume the cache.
 
 ```bash
-sh tools/bootstrap_teacher.sh
-sh tools/prepare_teacher_cache.sh
-sh tools/train_encoders.sh
-sh tools/train_generators.sh
-sh tools/train_joint.sh
+sh tools/train_m1.sh
 ```
+
+The full command is idempotent around teacher features: source WAV hashes are
+checked before extraction, and only stale BN/mel/speaker arrays are removed and
+recomputed. Advanced users can still run the individual stage scripts.
 
 The complete M1 training system is now executable: four staged trainers followed
 by full-graph joint refinement. Joint training restores all five native models,
 strictly checks teacher commit + manifest SHA across staged checkpoints, then
 optimizes content distillation, speaker distillation, mel reconstruction, and
 waveform reconstruction together.
+
+Teacher preprocessing and Voxera training may use separate interpreters through
+`VOXERA_TEACHER_PYTHON` and `VOXERA_TRAIN_PYTHON`, which avoids forcing the
+MeanVC2 research environment into the deployment/training environment.
 
 See [docs/M1_TRAINING.md](docs/M1_TRAINING.md).
 
