@@ -4,9 +4,9 @@ import argparse
 from pathlib import Path
 
 import torch
-from torch import Tensor, nn
 
 from contentnet import CausalContentNet, ContentNetConfig
+from torch import Tensor, nn
 
 
 class StreamingExportWrapper(nn.Module):
