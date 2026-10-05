@@ -221,13 +221,14 @@ sh tools/bootstrap_teacher.sh
 sh tools/prepare_teacher_cache.sh
 sh tools/train_encoders.sh
 sh tools/train_generators.sh
+sh tools/train_joint.sh
 ```
 
-All four M1 neural training stages are now executable: ContentNet, TimbreNet,
-ConditionFusion+DecoderNet, and LiteVocoder. The generator stages deliberately
-start from teacher BN/speaker/mel targets so they can converge before joint
-student refinement. CI runs real CPU backward/optimizer/checkpoint passes for
-both encoder and generator stages.
+The complete M1 training system is now executable: four staged trainers followed
+by full-graph joint refinement. Joint training restores all five native models,
+strictly checks teacher commit + manifest SHA across staged checkpoints, then
+optimizes content distillation, speaker distillation, mel reconstruction, and
+waveform reconstruction together.
 
 See [docs/M1_TRAINING.md](docs/M1_TRAINING.md).
 
@@ -272,7 +273,7 @@ python benchmarks/frontend.py
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture/orchestration and all staged M1 trainers implemented; dataset training, joint refinement, and quality validation in progress.**
+2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture/orchestration and full staged + joint training system implemented; real dataset training and quality validation are the remaining M1 gates.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
