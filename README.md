@@ -176,6 +176,33 @@ python training/smoke_vocoder.py
 python training/export_lite_vocoder.py --output artifacts/lite_vocoder.onnx
 ```
 
+### NativePipeline
+
+The complete M1 component graph now has one backend-independent orchestration contract:
+
+```text
+source PCM → frontend → ContentNet + Pitch
+target PCM → frontend → TimbreNet (once)
+                ↓
+          ConditionFusion
+                ↓
+             DecoderNet
+                ↓
+            LiteVocoder
+                ↓
+       native StreamingISTFT
+                ↓
+             16 kHz PCM
+```
+
+`NativeOfflinePipeline` itself imports neither PyTorch nor ONNX Runtime. Model execution is supplied through five small protocols, so the same orchestration can later use PyTorch, ONNX Runtime, QNN/HTP, or native kernels. Target speaker embeddings are prepared once and reusable across multiple source utterances.
+
+The full neural smoke now traverses every trainable M1 module and emits finite PCM through the native iSTFT stage. See [docs/M1_NATIVE_PIPELINE.md](docs/M1_NATIVE_PIPELINE.md).
+
+```bash
+python training/smoke_native_pipeline.py
+```
+
 ## M1 executable baseline
 
 M1 uses MeanVC2 through audio.cpp as a temporary quality/latency oracle. Neither project is vendored into Voxera.
@@ -217,7 +244,7 @@ python benchmarks/frontend.py
 ## Roadmap
 
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
-2. **M1 — Offline VC architecture:** native acoustic/content/pitch/timbre/conditioning/decoder/vocoder path plus MeanVC2 quality oracle. **Architecture complete; training/integration in progress.**
+2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture and orchestration complete; model training/quality validation in progress.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis.
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
