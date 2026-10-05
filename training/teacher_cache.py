@@ -9,7 +9,6 @@ from pathlib import Path
 
 import numpy as np
 
-
 MEANVC2_REPOSITORY = "https://github.com/ASLP-lab/MeanVC2.git"
 MEANVC2_COMMIT = "13acf84c1bf135ea5edad9c245b345289b06b33e"
 
