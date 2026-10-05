@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 from .acoustic import MelSpectrogram
 from .audio import AudioBuffer, resample_linear
 from .conditioning import FrameConditions, align_frame_conditions
+from .content import ContentCadence
 from .features import FeatureBatch, LogMelFrontend
 from .pitch import YinPitchExtractor
 from .speaker import SpeakerEmbedding
@@ -61,11 +62,13 @@ class NativeConversionTrace:
     """Compact shape/time trace for debugging an end-to-end conversion."""
 
     source_samples: int
+    analysis_samples: int
     source_feature_frames: int
     pitch_frames: int
     condition_frames: int
     mel_frames: int
     spectral_frames: int
+    generated_samples: int
     output_samples: int
 
 
@@ -94,6 +97,7 @@ class NativeOfflinePipeline:
         self.sample_rate = sample_rate
         self.frontend = LogMelFrontend()
         self.pitch_extractor = YinPitchExtractor()
+        self.cadence = ContentCadence()
 
     def prepare_speaker(self, reference_audio: AudioBuffer) -> SpeakerEmbedding:
         reference = self._prepare_audio(reference_audio)
@@ -116,8 +120,12 @@ class NativeOfflinePipeline:
             raise ValueError("native M1 pipeline expects a 256-d speaker embedding")
 
         source = self._prepare_audio(source_audio)
-        feature_batch = self.frontend.extract(source.samples)
-        pitch_track = self.pitch_extractor.extract(source.samples)
+        if source.samples.size == 0:
+            raise ValueError("source audio must contain at least one sample")
+
+        analysis = self._pad_source_for_full_cadence(source)
+        feature_batch = self.frontend.extract(analysis.samples)
+        pitch_track = self.pitch_extractor.extract(analysis.samples)
 
         dense_content = self._validate_dense_content(
             self.models.content.encode(feature_batch.values),
@@ -127,6 +135,7 @@ class NativeOfflinePipeline:
             dense_content,
             pitch_track,
             speaker,
+            cadence=self.cadence,
         )
 
         fused = self._validate_fused(
@@ -140,18 +149,25 @@ class NativeOfflinePipeline:
         self._validate_spectral(spectral, mel)
 
         synthesizer = StreamingISTFT()
-        pcm = synthesizer.push(spectral)
+        generated_pcm = synthesizer.push(spectral)
+        if generated_pcm.size < source.samples.size:
+            raise RuntimeError(
+                "native pipeline generated fewer samples than the source duration"
+            )
+        pcm = generated_pcm[: source.samples.size].copy()
         output = AudioBuffer(pcm, self.sample_rate)
 
         return NativeConversionResult(
             audio=output,
             trace=NativeConversionTrace(
                 source_samples=source.samples.size,
+                analysis_samples=analysis.samples.size,
                 source_feature_frames=feature_batch.frame_count,
                 pitch_frames=pitch_track.frame_count,
                 condition_frames=frame_conditions.frame_count,
                 mel_frames=mel.frame_count,
                 spectral_frames=spectral.frame_count,
+                generated_samples=generated_pcm.size,
                 output_samples=pcm.size,
             ),
         )
@@ -166,6 +182,41 @@ class NativeOfflinePipeline:
 
     def _prepare_audio(self, audio: AudioBuffer) -> AudioBuffer:
         return resample_linear(audio, self.sample_rate)
+
+    def _pad_source_for_full_cadence(self, source: AudioBuffer) -> AudioBuffer:
+        """Right-pad analysis audio so decoder coverage includes the last sample.
+
+        Content and pitch use snipped-edge analysis windows. Without padding,
+        their common prefix ends before the original waveform, and a 40 ms
+        cadence can shorten the converted result. Padding exists only on the
+        analysis path; final PCM is cropped back to the exact source length.
+        """
+
+        hop = self.pitch_extractor.config.hop_samples
+        target_mel_frames = (source.samples.size + hop - 1) // hop
+        condition_frames = (
+            target_mel_frames + self.cadence.stride - 1
+        ) // self.cadence.stride
+
+        required_dense_frames = (
+            self.cadence.offset
+            + (condition_frames - 1) * self.cadence.stride
+            + 1
+        )
+        required_analysis_samples = (
+            (required_dense_frames - 1) * hop
+            + self.pitch_extractor.config.frame_samples
+        )
+
+        padding = max(0, required_analysis_samples - source.samples.size)
+        if padding == 0:
+            return AudioBuffer(source.samples.copy(), source.sample_rate)
+
+        samples = np.pad(source.samples, (0, padding)).astype(
+            np.float32,
+            copy=False,
+        )
+        return AudioBuffer(samples, source.sample_rate)
 
     @staticmethod
     def _validate_dense_content(
@@ -198,12 +249,12 @@ class NativeOfflinePipeline:
             raise ValueError("condition model returned non-finite values")
         return fused
 
-    @staticmethod
     def _validate_mel(
+        self,
         mel: MelSpectrogram,
         conditions: FrameConditions,
     ) -> None:
-        expected_frames = conditions.frame_count * 4
+        expected_frames = conditions.frame_count * self.cadence.stride
         if mel.frame_count != expected_frames:
             raise ValueError(
                 f"decoder must emit {expected_frames} mel frames, "
