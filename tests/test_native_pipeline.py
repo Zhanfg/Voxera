@@ -7,7 +7,7 @@ from voxera.audio import AudioBuffer
 from voxera.conditioning import FrameConditions
 from voxera.native_pipeline import NativeModels, NativeOfflinePipeline
 from voxera.speaker import SpeakerEmbedding
-from voxera.vocoder import SpectralFrames, waveform_to_spectral_frames
+from voxera.vocoder import waveform_to_spectral_frames
 
 
 class DummyContent:
