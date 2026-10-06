@@ -47,6 +47,7 @@ jobs:
       - run: python training/smoke_vocoder.py
       - run: python training/smoke_native_pipeline.py
       - run: python training/smoke_prosody.py
+      - run: python training/smoke_semantic_conditioner.py
       - run: python -m training.smoke_train_encoders
       - run: python -m training.smoke_train_generators
       - run: python -m training.smoke_train_joint
