@@ -10,14 +10,7 @@ import torch
 from training.condition_fusion import ConditionFusion, ConditionFusionConfig
 from training.contentnet import CausalContentNet, ContentNetConfig
 from training.decoder import DecoderNet, DecoderNetConfig
-from training.export_bundle import (
-    CoreModels,
-    _export_contentnet,
-    _export_decoder,
-    _export_fusion,
-    _export_timbrenet,
-    _export_vocoder,
-)
+from training import export_bundle
 from training.lite_vocoder import LiteVocoder, LiteVocoderConfig
 from training.timbrenet import TimbreNet, TimbreNetConfig
 
@@ -47,7 +40,7 @@ def _assert_close(name: str, expected: torch.Tensor, actual: np.ndarray) -> floa
 
 def main() -> int:
     torch.manual_seed(109)
-    models = CoreModels(
+    models = export_bundle.CoreModels(
         contentnet=CausalContentNet(ContentNetConfig()).eval(),
         timbrenet=TimbreNet(TimbreNetConfig()).eval(),
         condition_fusion=ConditionFusion(ConditionFusionConfig()).eval(),
@@ -58,11 +51,11 @@ def main() -> int:
     errors: dict[str, float] = {}
     with tempfile.TemporaryDirectory(prefix="voxera-ort-parity-") as temporary:
         root = Path(temporary)
-        _export_contentnet(models.contentnet, root / "contentnet.onnx", 4, 17)
-        _export_timbrenet(models.timbrenet, root / "timbrenet.onnx", 8, 17)
-        _export_fusion(models.condition_fusion, root / "condition_fusion.onnx", 2, 17)
-        _export_decoder(models.decoder, root / "decodernet.onnx", 2, 17)
-        _export_vocoder(models.lite_vocoder, root / "lite_vocoder.onnx", 4, 17)
+        export_bundle._export_contentnet(models.contentnet, root / "contentnet.onnx", 4, 17)
+        export_bundle._export_timbrenet(models.timbrenet, root / "timbrenet.onnx", 8, 17)
+        export_bundle._export_fusion(models.condition_fusion, root / "condition_fusion.onnx", 2, 17)
+        export_bundle._export_decoder(models.decoder, root / "decodernet.onnx", 2, 17)
+        export_bundle._export_vocoder(models.lite_vocoder, root / "lite_vocoder.onnx", 4, 17)
 
         with torch.no_grad():
             features = torch.randn(1, 7, 80)
