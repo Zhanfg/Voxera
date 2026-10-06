@@ -55,8 +55,11 @@ CI may export random-initialized graphs only through an explicit
 `--allow-untrained` flag; those manifests are permanently labeled
 `untrained-smoke`.
 
-FP32 is the correctness baseline. FP16 and calibrated static INT8 are candidates,
-not claimed results yet.
+FP32 is the correctness baseline. CI now also runs PyTorch ↔ ONNX Runtime
+1.30.0 parity for all five core graphs using dynamic frame lengths different
+from export examples, including streaming cache outputs.
+
+FP16 and calibrated static INT8 are candidates, not claimed results yet.
 
 See [docs/M4_EDGE_RUNTIME.md](docs/M4_EDGE_RUNTIME.md).
 
@@ -382,7 +385,7 @@ python benchmarks/frontend.py
 2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture/orchestration and full staged + joint training system implemented; real dataset training and quality validation are the remaining M1 gates.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis. **Core descriptor, ProsodyNet, zero-safe conditioner, and teacher-free bootstrap trainer implemented; real expressive-data training remains.**
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio. **Core snapshot/mailbox contract, deterministic bilingual intent cues, optional runtime conditioning, sherpa-onnx streaming adapter, whisper.cpp phrase-final adapter, explicit backend selection, partial-hypothesis stabilization, and pinned source bootstrap implemented; native JNI/QNN integration, ASR model selection, real-speech threshold tuning, and device benchmarks remain.**
-5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration. **Verified five-model ONNX bundle contract, source/artifact hashing, tensor/state manifest, no-argument production exporter, and precision policy implemented; trained FP16/INT8 calibration/benchmarks remain.**
+5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration. **Verified five-model ONNX bundle contract, source/artifact hashing, tensor/state manifest, no-argument production exporter, and PyTorch↔ONNX Runtime FP32 dynamic-shape parity gate implemented; trained FP16/INT8 calibration/benchmarks remain.**
 6. **M5 — Streaming:** chunked inference, cross-fade/state handling, latency and power optimization.
 
 ## Licensing
