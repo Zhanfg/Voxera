@@ -9,6 +9,7 @@ from .conditioning import FrameConditions, align_frame_conditions, pitch_conditi
 from .config import AudioConfig
 from .content import ContentCadence, StreamingCadenceSelector
 from .features import FbankConfig, FeatureBatch, LogMelFrontend, StreamingLogMelFrontend
+from .hypothesis import HypothesisStabilizer, HypothesisStabilizerConfig
 from .native_pipeline import (
     NativeConversionResult,
     NativeConversionTrace,
@@ -52,6 +53,8 @@ __all__ = [
     "FbankConfig",
     "FeatureBatch",
     "FrameConditions",
+    "HypothesisStabilizer",
+    "HypothesisStabilizerConfig",
     "LogMelFrontend",
     "MelConfig",
     "MelSpectrogram",
@@ -98,4 +101,4 @@ __all__ = [
     "pitch_condition_features",
     "waveform_to_spectral_frames",
 ]
-__version__ = "0.3.0a3"
+__version__ = "0.3.0a4"
