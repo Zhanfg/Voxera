@@ -18,6 +18,22 @@ Reference assets live below `.cache/reference/` and teacher assets below `.cache
 
 No pretrained third-party model weights are committed to this repository.
 
+## M3 ASR adapter targets
+
+ASR source trees are **not vendored** into Voxera and are not runtime
+dependencies of the Python core:
+
+- **sherpa-onnx v1.13.8** — Apache-2.0. Primary offline/streaming ASR adapter
+  target, including Android and Qualcomm QNN/HTP deployment paths.
+- **whisper.cpp v1.9.4** — MIT. Secondary compatibility and ASR quality
+  baseline.
+
+`tools/bootstrap_asr.sh` pins these source versions below `.cache/asr/`.
+It does not download ASR model weights.
+
+ASR model weights must be reviewed independently: model licenses can differ
+from the framework source license.
+
 ## Integration rule
 
 Every future model or library integration must record:
