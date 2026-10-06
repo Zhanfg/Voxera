@@ -2,7 +2,7 @@
 
 Lightweight offline semantic-prosodic neural voice conversion engine for edge devices.
 
-> Status: **M2 / pre-alpha**. M1 architecture/training infrastructure is complete pending real-data training; M2 now adds an explicit lightweight prosody/style path.
+> Status: **M3 / pre-alpha**. M1/M2 architecture is in place; M3 now adds a non-blocking offline semantic/ASR sidecar and zero-safe semantic conditioning.
 
 ## Goals
 
@@ -21,12 +21,41 @@ Audio
   ├─ ContentNet ───────────────┤
   ├─ Native F0 / Pitch ─────────┼─> Native Condition Fusion ─┐
   ├─ Native Prosody / ProsodyNet ┤                            ├─> ProsodyConditioner -> DecoderNet -> LiteVocoder -> PCM
-  └─ Semantic Sidecar* ─────────┘                            │
+  └─ Semantic Sidecar ──────────┘                            │
                     + TimbreNet Speaker Embedding ───────────┘
 ```
 
-The full M1 generation path is represented by Voxera-native components. M2 now adds explicit local and phrase-level delivery conditioning; semantic interpretation remains a later sidecar.
+The full M1 generation path is represented by Voxera-native components. M2 adds acoustic delivery conditioning; M3 adds a latest-value semantic sidecar that stays outside the real-time audio critical path.
 
+
+
+## M3 semantic sidecar progress
+
+Voxera now has an explicit semantic/discourse path that does **not** run ASR
+inside the conversion call.
+
+`StreamingASRBackend` produces versioned `TranscriptHypothesis` updates on a
+background path. `NativeSemanticAnalyzer` converts the newest transcript into
+a 16-d `SemanticSnapshot` covering question/command/emphasis/hesitation/
+uncertainty/negation/continuation and lightweight Chinese/English/mixed-language
+cues.
+
+The audio graph only consumes the latest immutable snapshot from
+`SemanticMailbox`. If ASR is slow, absent, or temporarily stale, conversion
+continues rather than blocking.
+
+The first neural `SemanticConditioner` is a confidence-gated residual adapter
+after M1/M2 conditioning. Like M2's prosody adapter, it is zero-initialized, so
+an untrained semantic path is an exact identity transform.
+
+Primary ASR integration target: sherpa-onnx. Compatibility/quality target:
+whisper.cpp. Their source trees remain outside the core package.
+
+```bash
+sh tools/bootstrap_asr.sh
+```
+
+See [docs/M3_SEMANTIC.md](docs/M3_SEMANTIC.md).
 
 ## M2 prosody progress
 
@@ -307,7 +336,7 @@ python benchmarks/frontend.py
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
 2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture/orchestration and full staged + joint training system implemented; real dataset training and quality validation are the remaining M1 gates.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis. **Core descriptor, ProsodyNet, zero-safe conditioner, and teacher-free bootstrap trainer implemented; real expressive-data training remains.**
-4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio.
+4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio. **Core snapshot/mailbox contract, deterministic bilingual intent cues, optional runtime conditioning, ASR backend contract, and pinned backend bootstrap implemented; concrete native ASR adapters and real-device benchmarks remain.**
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
 6. **M5 — Streaming:** chunked inference, cross-fade/state handling, latency and power optimization.
 
