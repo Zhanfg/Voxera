@@ -4,8 +4,8 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-import onnxruntime as ort
 import torch
+from onnxruntime import InferenceSession
 
 from training.condition_fusion import ConditionFusion, ConditionFusionConfig
 from training.contentnet import CausalContentNet, ContentNetConfig
@@ -18,8 +18,8 @@ ATOL = 3e-5
 RTOL = 2e-4
 
 
-def _session(path: Path) -> ort.InferenceSession:
-    return ort.InferenceSession(
+def _session(path: Path) -> InferenceSession:
+    return InferenceSession(
         str(path),
         providers=["CPUExecutionProvider"],
     )
