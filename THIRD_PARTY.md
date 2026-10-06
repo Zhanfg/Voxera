@@ -24,7 +24,8 @@ ASR source trees are **not vendored** into Voxera and are not runtime
 dependencies of the Python core:
 
 - **sherpa-onnx v1.13.8** — Apache-2.0. Primary offline/streaming ASR adapter
-  target, including Android and Qualcomm QNN/HTP deployment paths.
+  target, including the implemented optional Python reference adapter plus
+  planned Android JNI and Qualcomm QNN/HTP deployment paths.
 - **whisper.cpp v1.9.4** — MIT. Secondary compatibility and ASR quality
   baseline.
 
