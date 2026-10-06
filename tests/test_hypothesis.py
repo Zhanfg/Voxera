@@ -31,7 +31,7 @@ def test_latin_partial_does_not_publish_mid_word() -> None:
     stabilizer = HypothesisStabilizer()
 
     assert stabilizer.push(_partial("please sen", 1)) is None
-    assert stabilizer.push(_partial("please send", 2)).text == "please "
+    assert stabilizer.push(_partial("please send", 2)).text == "please"
     result = stabilizer.push(_partial("please send it", 3))
 
     assert result is not None
