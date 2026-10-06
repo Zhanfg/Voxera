@@ -7,7 +7,6 @@ import numpy as np
 import onnxruntime as ort
 import torch
 
-from training import export_bundle
 from training.condition_fusion import ConditionFusion, ConditionFusionConfig
 from training.contentnet import CausalContentNet, ContentNetConfig
 from training.decoder import DecoderNet, DecoderNetConfig
@@ -39,6 +38,8 @@ def _assert_close(name: str, expected: torch.Tensor, actual: np.ndarray) -> floa
 
 
 def main() -> int:
+    from training import export_bundle
+
     torch.manual_seed(109)
     models = export_bundle.CoreModels(
         contentnet=CausalContentNet(ContentNetConfig()).eval(),
