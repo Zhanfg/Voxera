@@ -8,6 +8,15 @@ from .asr_whisper import WhisperCppCliASR, WhisperCppCliConfig
 from .conditioning import FrameConditions, align_frame_conditions, pitch_condition_features
 from .config import AudioConfig
 from .content import ContentCadence, StreamingCadenceSelector
+from .deployment import (
+    DEPLOYMENT_SCHEMA,
+    BundleManifest,
+    ModelArtifact,
+    PrecisionPolicy,
+    TensorSpec,
+    load_bundle_manifest,
+    verify_bundle,
+)
 from .features import FbankConfig, FeatureBatch, LogMelFrontend, StreamingLogMelFrontend
 from .hypothesis import HypothesisStabilizer, HypothesisStabilizerConfig
 from .native_pipeline import (
@@ -48,6 +57,8 @@ __all__ = [
     "ASRBackendKind",
     "ASRBackendSelection",
     "AudioConfig",
+    "BundleManifest",
+    "DEPLOYMENT_SCHEMA",
     "NativeSemanticAnalyzer",
     "ContentCadence",
     "FbankConfig",
@@ -58,11 +69,13 @@ __all__ = [
     "LogMelFrontend",
     "MelConfig",
     "MelSpectrogram",
+    "ModelArtifact",
     "NativeConversionResult",
     "NativeConversionTrace",
     "NativeModels",
     "NativeOfflinePipeline",
     "PitchConfig",
+    "PrecisionPolicy",
     "PitchTrack",
     "PROSODY_GLOBAL_DIM",
     "PROSODY_GLOBAL_EMBED_DIM",
@@ -88,6 +101,7 @@ __all__ = [
     "StreamingISTFT",
     "StreamingLogMelFrontend",
     "StreamingYinPitchExtractor",
+    "TensorSpec",
     "TextReplayASR",
     "WhisperCppCliASR",
     "WhisperCppCliConfig",
@@ -98,7 +112,9 @@ __all__ = [
     "create_asr_backend",
     "cosine_similarity",
     "expected_mel_frames",
+    "load_bundle_manifest",
     "pitch_condition_features",
+    "verify_bundle",
     "waveform_to_spectral_frames",
 ]
-__version__ = "0.3.0a4"
+__version__ = "0.4.0a1"
