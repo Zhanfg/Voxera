@@ -20,13 +20,15 @@ class TensorSpec:
             raise ValueError("tensor name must be non-empty")
         if not self.dtype:
             raise ValueError("tensor dtype must be non-empty")
-        if not self.shape:
+        shape = tuple(self.shape)
+        if not shape:
             raise ValueError("tensor shape must be non-empty")
-        for dimension in self.shape:
+        for dimension in shape:
             if isinstance(dimension, int) and dimension <= 0:
                 raise ValueError("static tensor dimensions must be positive")
             if isinstance(dimension, str) and not dimension:
                 raise ValueError("dynamic tensor dimensions must be named")
+        object.__setattr__(self, "shape", shape)
 
 
 @dataclass(frozen=True, slots=True)
