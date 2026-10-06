@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from voxera.asr import SemanticMailbox, SemanticSidecar, TextReplayASR
+from voxera.hypothesis import HypothesisStabilizer
 from voxera.semantic import NativeSemanticAnalyzer, TranscriptHypothesis
 
 
@@ -107,3 +108,57 @@ def test_sidecar_publishes_latest_without_audio_path_asr_dependency() -> None:
     assert sidecar.mailbox.read_latest() == second[0]
     assert second[0].revision == 2
     assert second[0].mode == "question"
+
+
+
+def test_sidecar_can_stabilize_partial_hypotheses_before_semantics() -> None:
+    backend = TextReplayASR(
+        (
+            TranscriptHypothesis("我今天", confidence=0.9, revision=1),
+            TranscriptHypothesis("我今天想", confidence=0.9, revision=2),
+            TranscriptHypothesis(
+                "我今天想继续。",
+                confidence=0.95,
+                is_final=True,
+                revision=3,
+            ),
+        )
+    )
+    sidecar = SemanticSidecar(
+        backend,
+        stabilizer=HypothesisStabilizer(),
+    )
+    audio = np.zeros(320, dtype=np.float32)
+
+    assert sidecar.push_audio(audio, 16_000) == ()
+
+    stable = sidecar.push_audio(audio, 16_000)
+    assert len(stable) == 1
+    assert stable[0].text == "我今天"
+    assert stable[0].revision == 2
+    assert not stable[0].is_final
+
+    final = sidecar.push_audio(audio, 16_000)
+    assert len(final) == 1
+    assert final[0].text == "我今天想继续。"
+    assert final[0].is_final
+    assert final[0].revision == 3
+
+
+def test_sidecar_reset_resets_stabilizer_state() -> None:
+    hypotheses = (
+        TranscriptHypothesis("第一句", confidence=0.9, revision=1),
+        TranscriptHypothesis("第一句话", confidence=0.9, revision=2),
+    )
+    sidecar = SemanticSidecar(
+        TextReplayASR(hypotheses),
+        stabilizer=HypothesisStabilizer(),
+    )
+    audio = np.zeros(320, dtype=np.float32)
+
+    assert sidecar.push_audio(audio, 16_000) == ()
+    assert len(sidecar.push_audio(audio, 16_000)) == 1
+
+    sidecar.reset()
+    assert sidecar.mailbox.read_latest() is None
+    assert sidecar.push_audio(audio, 16_000) == ()
