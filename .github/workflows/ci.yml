@@ -52,3 +52,4 @@ jobs:
       - run: python -m training.smoke_train_generators
       - run: python -m training.smoke_train_joint
       - run: python -m training.smoke_train_prosody
+      - run: python -m training.smoke_export_bundle

@@ -460,3 +460,27 @@ land before semantic-to-acoustic supervision exists.
 Current CI validates the identity property. Future real-data training can attach
 semantic features to mel/waveform reconstruction while retaining M1 content and
 M2 prosody auxiliary constraints.
+
+
+## M4 deployment bundle export
+
+After joint refinement produces a usable checkpoint:
+
+```bash
+sh tools/export_runtime_bundle.sh
+```
+
+Production export requires a `joint_refinement` checkpoint. The exporter emits
+the five required M1 ONNX graphs plus a SHA-256-bearing `bundle.json` tensor
+contract.
+
+For CI/architecture validation only:
+
+```bash
+python -m training.export_bundle \
+  --output-dir artifacts/runtime-smoke \
+  --allow-untrained
+```
+
+The explicit untrained mode is marked in the manifest and never records
+checkpoint provenance. Every exported graph is validated by `onnx.checker`.
