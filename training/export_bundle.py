@@ -112,6 +112,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("artifacts/edge_bundle"),
     )
     parser.add_argument("--chunk-frames", type=int, default=16)
+    parser.add_argument(
+        "--allow-untrained",
+        action="store_true",
+        help="Allow random/default weights for export-contract testing only.",
+    )
     return parser
 
 
@@ -124,6 +129,7 @@ def main() -> int:
         args.output_dir,
         checkpoint_dir=args.checkpoint_dir,
         chunk_frames=args.chunk_frames,
+        allow_untrained=args.allow_untrained,
     )
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0
@@ -134,6 +140,7 @@ def export_edge_bundle(
     *,
     checkpoint_dir: Path,
     chunk_frames: int = 16,
+    allow_untrained: bool = False,
 ) -> dict[str, Any]:
     if chunk_frames <= 0:
         raise ValueError("chunk_frames must be positive")
@@ -153,6 +160,22 @@ def export_edge_bundle(
         "semantic_conditioner": SemanticConditioner().eval(),
     }
     sources = _load_available_checkpoints(models, checkpoint_dir)
+    trained = {name: source is not None for name, source in sources.items()}
+    required_trained = (
+        "contentnet",
+        "timbrenet",
+        "condition_fusion",
+        "decoder",
+        "lite_vocoder",
+    )
+    missing_required = [name for name in required_trained if not trained[name]]
+    if missing_required and not allow_untrained:
+        joined = ", ".join(missing_required)
+        raise RuntimeError(
+            "refusing to export a deployable bundle with untrained core models: "
+            f"{joined}. Train M1 first or use --allow-untrained for export-contract "
+            "testing only."
+        )
 
     exports: dict[str, dict[str, Any]] = {}
 
@@ -174,6 +197,7 @@ def export_edge_bundle(
             "next_cache": {1: "batch"},
         },
         source=sources["contentnet"],
+        trained=trained["contentnet"],
         parameters=_parameters(contentnet),
         contract={
             "cadence_ms": 10,
@@ -196,6 +220,7 @@ def export_edge_bundle(
             "speaker": {0: "batch"},
         },
         source=sources["timbrenet"],
+        trained=trained["timbrenet"],
         parameters=_parameters(timbrenet),
         contract={
             "input_dim": timbrenet.config.input_dim,
@@ -222,6 +247,7 @@ def export_edge_bundle(
             "conditions": {0: "batch", 1: "frames"},
         },
         source=sources["condition_fusion"],
+        trained=trained["condition_fusion"],
         parameters=_parameters(fusion),
         contract={
             "cadence_ms": 40,
@@ -257,6 +283,7 @@ def export_edge_bundle(
             "global_descriptor": {0: "batch"},
         },
         source=sources["prosodynet"],
+        trained=trained["prosodynet"],
         parameters=_parameters(prosodynet),
         contract={
             "cadence_ms": 10,
@@ -287,6 +314,7 @@ def export_edge_bundle(
             "conditions": {0: "batch", 1: "frames"},
         },
         source=sources["prosody_conditioner"],
+        trained=trained["prosody_conditioner"],
         parameters=_parameters(prosody_conditioner),
         contract=asdict(prosody_conditioner.config),
     )
@@ -310,6 +338,7 @@ def export_edge_bundle(
             "conditions": {0: "batch", 1: "frames"},
         },
         source=sources["semantic_conditioner"],
+        trained=trained["semantic_conditioner"],
         parameters=_parameters(semantic_conditioner),
         contract=asdict(semantic_conditioner.config),
     )
@@ -332,6 +361,7 @@ def export_edge_bundle(
             "next_cache": {1: "batch"},
         },
         source=sources["decoder"],
+        trained=trained["decoder"],
         parameters=_parameters(decoder),
         contract={
             "input_cadence_ms": 40,
@@ -362,6 +392,7 @@ def export_edge_bundle(
             "next_cache": {1: "batch"},
         },
         source=sources["lite_vocoder"],
+        trained=trained["lite_vocoder"],
         parameters=_parameters(vocoder),
         contract={
             "cadence_ms": 10,
@@ -378,6 +409,9 @@ def export_edge_bundle(
         "onnx_opset": ONNX_OPSET,
         "precision": "fp32",
         "sample_rate": 16_000,
+        "deployable": not missing_required,
+        "untrained_export_allowed": allow_untrained,
+        "missing_required_models": missing_required,
         "models": exports,
         "totals": {
             "unique_parameters": sum(
@@ -409,6 +443,7 @@ def _export_model(
     output_names: list[str],
     dynamic_axes: dict[str, dict[int, str]],
     source: dict[str, str] | None,
+    trained: bool,
     parameters: int,
     contract: dict[str, Any],
 ) -> dict[str, Any]:
@@ -431,6 +466,8 @@ def _export_model(
         "sha256": _sha256(path),
         "bytes": path.stat().st_size,
         "parameters": parameters,
+        "trained": trained,
+        "weights_status": "checkpoint" if trained else "default_initialization",
         "source": source,
         "contract": contract,
     }
