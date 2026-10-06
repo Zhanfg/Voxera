@@ -17,6 +17,7 @@ from .content import ContentCadence
 from .features import FeatureBatch, LogMelFrontend
 from .pitch import YinPitchExtractor
 from .prosody import ProsodyEmbedding
+from .semantic import SemanticSnapshot
 from .speaker import SpeakerEmbedding
 from .vocoder import SpectralFrames, StreamingISTFT
 
@@ -61,6 +62,16 @@ class ProsodyConditionModel(Protocol):
         ...
 
 
+class SemanticConditionModel(Protocol):
+    def apply(
+        self,
+        conditions: FloatArray,
+        semantic: SemanticSnapshot,
+    ) -> FloatArray:
+        """Apply the latest semantic snapshot as a residual condition."""
+        ...
+
+
 class AcousticDecoderModel(Protocol):
     def decode(self, conditions: FloatArray) -> MelSpectrogram:
         """Return 80-bin log-mel frames at 10 ms cadence."""
@@ -82,6 +93,7 @@ class NativeModels:
     vocoder: VocoderModel
     prosody: ProsodyModel | None = None
     prosody_condition: ProsodyConditionModel | None = None
+    semantic_condition: SemanticConditionModel | None = None
 
     def __post_init__(self) -> None:
         if (self.prosody is None) != (self.prosody_condition is None):
@@ -103,6 +115,8 @@ class NativeConversionTrace:
     spectral_frames: int
     generated_samples: int
     output_samples: int
+    semantic_applied: bool = False
+    semantic_revision: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,8 +131,10 @@ class NativeOfflinePipeline:
     Neural execution is supplied through small protocols so the orchestration is
     independent from PyTorch, ONNX Runtime, QNN, or another edge backend.
 
-    M2 prosody is optional. Without both prosody protocols this class executes
-    the stable M1 graph unchanged.
+    M2 prosody and M3 semantics are optional. The audio graph never invokes ASR:
+    it can only consume an immutable SemanticSnapshot that a background sidecar
+    produced earlier. Without optional conditioners, the stable M1 graph remains
+    unchanged.
     """
 
     def __init__(
@@ -151,6 +167,8 @@ class NativeOfflinePipeline:
         self,
         source_audio: AudioBuffer,
         speaker: SpeakerEmbedding,
+        *,
+        semantic: SemanticSnapshot | None = None,
     ) -> NativeConversionResult:
         if speaker.dimension != 256:
             raise ValueError("native pipeline expects a 256-d speaker embedding")
@@ -195,6 +213,18 @@ class NativeOfflinePipeline:
                 frame_conditions,
             )
 
+        semantic_applied = False
+        if semantic is not None:
+            if self.models.semantic_condition is None:
+                raise ValueError(
+                    "semantic snapshot provided without semantic_condition model"
+                )
+            fused = self._validate_fused(
+                self.models.semantic_condition.apply(fused, semantic),
+                frame_conditions,
+            )
+            semantic_applied = True
+
         mel = self.models.decoder.decode(fused)
         self._validate_mel(mel, frame_conditions)
 
@@ -222,6 +252,8 @@ class NativeOfflinePipeline:
                 spectral_frames=spectral.frame_count,
                 generated_samples=generated_pcm.size,
                 output_samples=pcm.size,
+                semantic_applied=semantic_applied,
+                semantic_revision=semantic.revision if semantic_applied else None,
             ),
         )
 
@@ -229,9 +261,11 @@ class NativeOfflinePipeline:
         self,
         source_audio: AudioBuffer,
         reference_audio: AudioBuffer,
+        *,
+        semantic: SemanticSnapshot | None = None,
     ) -> NativeConversionResult:
         speaker = self.prepare_speaker(reference_audio)
-        return self.convert(source_audio, speaker)
+        return self.convert(source_audio, speaker, semantic=semantic)
 
     def _prepare_audio(self, audio: AudioBuffer) -> AudioBuffer:
         return resample_linear(audio, self.sample_rate)
