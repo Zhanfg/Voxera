@@ -8,6 +8,7 @@ from voxera.audio import AudioBuffer
 from voxera.conditioning import FrameConditions
 from voxera.native_pipeline import NativeModels, NativeOfflinePipeline
 from voxera.prosody import ProsodyEmbedding
+from voxera.semantic import NativeSemanticAnalyzer, TranscriptHypothesis
 from voxera.speaker import SpeakerEmbedding
 from voxera.vocoder import waveform_to_spectral_frames
 
@@ -56,6 +57,17 @@ class DummyProsodyCondition:
     def apply(self, conditions, prosody):
         self.called = True
         assert conditions.shape[0] == prosody.frame_count
+        return np.asarray(conditions, dtype=np.float32).copy()
+
+
+class DummySemanticCondition:
+    def __init__(self):
+        self.called = False
+        self.last_revision = None
+
+    def apply(self, conditions, semantic):
+        self.called = True
+        self.last_revision = semantic.revision
         return np.asarray(conditions, dtype=np.float32).copy()
 
 
@@ -152,7 +164,6 @@ def test_empty_source_is_rejected() -> None:
         pipeline.convert(source, speaker)
 
 
-
 def test_optional_prosody_path_is_applied_without_duration_change() -> None:
     conditioner = DummyProsodyCondition()
     pipeline = NativeOfflinePipeline(
@@ -205,3 +216,47 @@ def test_prosody_frame_mismatch_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="one local embedding"):
         pipeline.convert(source, speaker)
+
+
+
+def test_optional_semantic_snapshot_is_applied_without_duration_change() -> None:
+    conditioner = DummySemanticCondition()
+    pipeline = NativeOfflinePipeline(
+        NativeModels(
+            content=DummyContent(),
+            speaker=DummySpeaker(),
+            condition=DummyCondition(),
+            decoder=DummyDecoder(),
+            vocoder=DummyVocoder(),
+            semantic_condition=conditioner,
+        )
+    )
+    semantic = NativeSemanticAnalyzer().analyze(
+        TranscriptHypothesis(
+            "请继续。",
+            confidence=0.95,
+            is_final=True,
+            revision=7,
+        )
+    )
+    source = AudioBuffer(np.zeros(16_000, dtype=np.float32), 16_000)
+    speaker = SpeakerEmbedding(np.ones(256, dtype=np.float32))
+
+    result = pipeline.convert(source, speaker, semantic=semantic)
+
+    assert conditioner.called
+    assert conditioner.last_revision == 7
+    assert result.trace.semantic_applied
+    assert result.trace.semantic_revision == 7
+    assert result.audio.samples.shape == (16_000,)
+
+
+def test_semantic_snapshot_without_conditioner_is_rejected() -> None:
+    semantic = NativeSemanticAnalyzer().analyze(
+        TranscriptHypothesis("可以吗？", is_final=True, revision=2)
+    )
+    source = AudioBuffer(np.zeros(16_000, dtype=np.float32), 16_000)
+    speaker = SpeakerEmbedding(np.ones(256, dtype=np.float32))
+
+    with pytest.raises(ValueError, match="semantic_condition"):
+        _pipeline().convert(source, speaker, semantic=semantic)
