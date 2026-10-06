@@ -13,7 +13,6 @@ from training.decoder import DecoderNet, DecoderNetConfig
 from training.lite_vocoder import LiteVocoder, LiteVocoderConfig
 from training.timbrenet import TimbreNet, TimbreNetConfig
 
-
 ATOL = 3e-5
 RTOL = 2e-4
 
