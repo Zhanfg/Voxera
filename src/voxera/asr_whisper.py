@@ -3,9 +3,9 @@ from __future__ import annotations
 import subprocess
 import tempfile
 import wave
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 from numpy.typing import NDArray
