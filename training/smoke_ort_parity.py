@@ -7,10 +7,10 @@ import numpy as np
 import onnxruntime as ort
 import torch
 
+from training import export_bundle
 from training.condition_fusion import ConditionFusion, ConditionFusionConfig
 from training.contentnet import CausalContentNet, ContentNetConfig
 from training.decoder import DecoderNet, DecoderNetConfig
-from training import export_bundle
 from training.lite_vocoder import LiteVocoder, LiteVocoderConfig
 from training.timbrenet import TimbreNet, TimbreNetConfig
 
