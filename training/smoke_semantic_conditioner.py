@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import torch
-
 from semantic_conditioner import SemanticConditioner, count_parameters
 
 
