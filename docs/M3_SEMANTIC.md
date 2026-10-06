@@ -137,6 +137,27 @@ VOXERA_ASR_BACKENDS=whisper
 VOXERA_ASR_BACKENDS=both
 ```
 
+## Partial-hypothesis stabilization
+
+Streaming ASR partials are revisions, not immutable truth. Feeding every raw
+revision directly into semantic conditioning can make intent flip as the decoder
+rewrites its unstable tail.
+
+`HypothesisStabilizer` therefore publishes only a prefix confirmed by multiple
+consecutive partial hypotheses:
+
+- default: two confirming updates;
+- never publishes the middle of an ASCII word;
+- can extend an already-published stable prefix;
+- never retracts a published prefix because of a contradictory later partial;
+- final hypotheses bypass stabilization immediately and reset phrase state.
+
+This layer is language-light: CJK text can stabilize by character, while Latin
+text waits for token boundaries.
+
+Stabilization is optional on `SemanticSidecar`. It is recommended for sherpa
+streaming partials and unnecessary for the current whisper.cpp final-only path.
+
 ## Latest-value mailbox
 
 `SemanticMailbox` keeps only the newest immutable snapshot.
@@ -186,16 +207,17 @@ training must not silently alter M1/M2 output.
 - tests proving that semantic conditioning is not required for duration/output
   contracts;
 - concrete sherpa-onnx Python streaming adapter with endpoint/reset/finalization
-  lifecycle coverage.
+  lifecycle coverage;
+- concrete whisper.cpp phrase-final CLI adapter;
+- optional partial-hypothesis stabilizer integrated before semantic analysis.
 
 ## What still waits on real models/data
 
 - native sherpa-onnx JNI/C++ adapter matching the implemented Python reference;
-- concrete whisper.cpp adapter;
 - ASR model selection/benchmarking;
 - learned intent/style encoder beyond deterministic pseudo-targets;
 - semantic-to-prosody target supervision;
-- partial-hypothesis stabilization tuned on real speech;
+- partial-hypothesis stabilizer threshold tuning on real speech;
 - latency/power measurements on Android hardware.
 
 
