@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from semantic_conditioner import SemanticConditioner
-from semantic_conditioner import count_parameters
+from semantic_conditioner import SemanticConditioner, count_parameters
 
 
 def main() -> int:
