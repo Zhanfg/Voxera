@@ -436,3 +436,27 @@ exact identity effect on M1 decoder conditions.
 
 ProsodyNet checkpoints include a SHA-256 fingerprint of the WAV collection used
 for bootstrap training.
+
+
+## Semantic conditioning
+
+M3 keeps speech recognition out of the neural audio graph. The trainable piece
+inside the graph is a compact `SemanticConditioner`:
+
+```text
+semantic snapshot 16 + confidence 1
+              ↓
+           17 → 64
+              ↓
+      zero-safe gated residual
+              ↓
+decoder condition 256
+```
+
+The final residual projection is initialized to zero, making a fresh semantic
+adapter an exact identity transform. This allows M3 runtime/API integration to
+land before semantic-to-acoustic supervision exists.
+
+Current CI validates the identity property. Future real-data training can attach
+semantic features to mel/waveform reconstruction while retaining M1 content and
+M2 prosody auxiliary constraints.
