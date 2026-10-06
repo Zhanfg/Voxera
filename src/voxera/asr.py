@@ -6,6 +6,7 @@ from typing import Protocol
 import numpy as np
 from numpy.typing import NDArray
 
+from .hypothesis import HypothesisStabilizer
 from .prosody import ProsodyTrack
 from .semantic import (
     NativeSemanticAnalyzer,
@@ -70,14 +71,18 @@ class SemanticSidecar:
         *,
         analyzer: NativeSemanticAnalyzer | None = None,
         mailbox: SemanticMailbox | None = None,
+        stabilizer: HypothesisStabilizer | None = None,
     ) -> None:
         self.backend = backend
         self.analyzer = analyzer or NativeSemanticAnalyzer()
         self.mailbox = mailbox or SemanticMailbox()
+        self.stabilizer = stabilizer
 
     def reset(self) -> None:
         self.backend.reset()
         self.mailbox.clear()
+        if self.stabilizer is not None:
+            self.stabilizer.reset()
 
     def push_audio(
         self,
@@ -110,6 +115,12 @@ class SemanticSidecar:
     ) -> tuple[SemanticSnapshot, ...]:
         snapshots: list[SemanticSnapshot] = []
         for hypothesis in hypotheses:
+            if self.stabilizer is not None:
+                stabilized = self.stabilizer.push(hypothesis)
+                if stabilized is None:
+                    continue
+                hypothesis = stabilized
+
             snapshot = self.analyzer.analyze(hypothesis, prosody)
             self.mailbox.publish(snapshot)
             snapshots.append(snapshot)
