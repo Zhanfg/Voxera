@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import tempfile
 from pathlib import Path
 
@@ -39,7 +40,7 @@ def _assert_close(name: str, expected: torch.Tensor, actual: np.ndarray) -> floa
 
 
 def main() -> int:
-    from training import export_bundle
+    export_bundle = importlib.import_module("training.export_bundle")
 
     torch.manual_seed(109)
     models = export_bundle.CoreModels(
