@@ -1,6 +1,7 @@
 """Voxera reference runtime."""
 
 from .acoustic import MelConfig, MelSpectrogram, expected_mel_frames
+from .asr import SemanticMailbox, SemanticSidecar, StreamingASRBackend, TextReplayASR
 from .conditioning import FrameConditions, align_frame_conditions, pitch_condition_features
 from .config import AudioConfig
 from .content import ContentCadence, StreamingCadenceSelector
@@ -24,6 +25,13 @@ from .prosody import (
     ProsodyTrack,
     classify_prosody_style,
 )
+from .semantic import (
+    SEMANTIC_FEATURE_DIM,
+    SEMANTIC_MODES,
+    NativeSemanticAnalyzer,
+    SemanticSnapshot,
+    TranscriptHypothesis,
+)
 from .speaker import SpeakerEmbedding, cosine_similarity
 from .vocoder import (
     SpectralFrames,
@@ -34,6 +42,7 @@ from .vocoder import (
 
 __all__ = [
     "AudioConfig",
+    "NativeSemanticAnalyzer",
     "ContentCadence",
     "FbankConfig",
     "FeatureBatch",
@@ -55,14 +64,22 @@ __all__ = [
     "ProsodyEmbedding",
     "ProsodyTrack",
     "ReferencePipeline",
+    "SEMANTIC_FEATURE_DIM",
+    "SEMANTIC_MODES",
+    "SemanticMailbox",
+    "SemanticSidecar",
+    "SemanticSnapshot",
     "NativeProsodyExtractor",
     "SpeakerEmbedding",
     "SpectralFrames",
     "SpectralSynthesisConfig",
+    "StreamingASRBackend",
     "StreamingCadenceSelector",
     "StreamingISTFT",
     "StreamingLogMelFrontend",
     "StreamingYinPitchExtractor",
+    "TextReplayASR",
+    "TranscriptHypothesis",
     "YinPitchExtractor",
     "align_frame_conditions",
     "classify_prosody_style",
@@ -71,4 +88,4 @@ __all__ = [
     "pitch_condition_features",
     "waveform_to_spectral_frames",
 ]
-__version__ = "0.2.0a1"
+__version__ = "0.3.0a1"
