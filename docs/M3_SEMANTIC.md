@@ -84,6 +84,20 @@ The first production adapter target is sherpa-onnx because it has:
 Voxera pins source bootstrap to `v1.13.8`. Model licenses are separate and
 must be checked per selected model.
 
+The Python reference adapter is implemented as
+`SherpaOnnxStreamingASR` for streaming transducer models. It wraps the official
+`OnlineRecognizer.from_transducer` API and maps partial/final endpoint results
+to Voxera's versioned `TranscriptHypothesis` contract.
+
+Desktop development can install the optional CPU package group with:
+
+```bash
+pip install -e ".[asr-sherpa]"
+```
+
+Android production should use sherpa-onnx's native/JNI/QNN artifacts instead of
+shipping Python.
+
 ### Compatibility target: whisper.cpp
 
 whisper.cpp remains a second adapter/quality baseline:
@@ -159,11 +173,13 @@ training must not silently alter M1/M2 output.
 - zero-safe neural semantic conditioner;
 - optional NativeOfflinePipeline semantic snapshot input;
 - tests proving that semantic conditioning is not required for duration/output
-  contracts.
+  contracts;
+- concrete sherpa-onnx Python streaming adapter with endpoint/reset/finalization
+  lifecycle coverage.
 
 ## What still waits on real models/data
 
-- concrete sherpa-onnx JNI/C++ adapter;
+- native sherpa-onnx JNI/C++ adapter matching the implemented Python reference;
 - concrete whisper.cpp adapter;
 - ASR model selection/benchmarking;
 - learned intent/style encoder beyond deterministic pseudo-targets;
