@@ -2,7 +2,7 @@
 
 Lightweight offline semantic-prosodic neural voice conversion engine for edge devices.
 
-> Status: **M3 / pre-alpha**. M1/M2 architecture is in place; M3 now adds a non-blocking offline semantic/ASR sidecar and zero-safe semantic conditioning.
+> Status: **M4 / pre-alpha**. M1-M3 architecture is in place; M4 now starts the verified ONNX deployment bundle and precision contract.
 
 ## Goals
 
@@ -28,6 +28,37 @@ Audio
 The full M1 generation path is represented by Voxera-native components. M2 adds acoustic delivery conditioning; M3 adds a latest-value semantic sidecar that stays outside the real-time audio critical path.
 
 
+
+
+## M4 edge runtime progress
+
+Voxera now has a first deployment bundle contract for the five required M1
+neural graphs.
+
+```bash
+sh tools/export_runtime_bundle.sh
+```
+
+The exporter requires a real `joint_refinement` checkpoint in production,
+writes separate ONNX graphs for ContentNet, TimbreNet, ConditionFusion,
+DecoderNet and LiteVocoder, validates every graph, and writes a `bundle.json`
+manifest containing:
+
+- source checkpoint SHA-256;
+- per-model ONNX SHA-256;
+- exact tensor/state contracts;
+- streaming flags and timebases;
+- opset;
+- precision candidates and calibration requirements.
+
+CI may export random-initialized graphs only through an explicit
+`--allow-untrained` flag; those manifests are permanently labeled
+`untrained-smoke`.
+
+FP32 is the correctness baseline. FP16 and calibrated static INT8 are candidates,
+not claimed results yet.
+
+See [docs/M4_EDGE_RUNTIME.md](docs/M4_EDGE_RUNTIME.md).
 
 ## M3 semantic sidecar progress
 
@@ -351,7 +382,7 @@ python benchmarks/frontend.py
 2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture/orchestration and full staged + joint training system implemented; real dataset training and quality validation are the remaining M1 gates.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis. **Core descriptor, ProsodyNet, zero-safe conditioner, and teacher-free bootstrap trainer implemented; real expressive-data training remains.**
 4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio. **Core snapshot/mailbox contract, deterministic bilingual intent cues, optional runtime conditioning, sherpa-onnx streaming adapter, whisper.cpp phrase-final adapter, explicit backend selection, partial-hypothesis stabilization, and pinned source bootstrap implemented; native JNI/QNN integration, ASR model selection, real-speech threshold tuning, and device benchmarks remain.**
-5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
+5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration. **Verified five-model ONNX bundle contract, source/artifact hashing, tensor/state manifest, no-argument production exporter, and precision policy implemented; trained FP16/INT8 calibration/benchmarks remain.**
 6. **M5 — Streaming:** chunked inference, cross-fade/state handling, latency and power optimization.
 
 ## Licensing
