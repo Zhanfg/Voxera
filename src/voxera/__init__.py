@@ -2,6 +2,7 @@
 
 from .acoustic import MelConfig, MelSpectrogram, expected_mel_frames
 from .asr import SemanticMailbox, SemanticSidecar, StreamingASRBackend, TextReplayASR
+from .asr_sherpa import SherpaOnnxStreamingASR, SherpaOnnxTransducerConfig
 from .conditioning import FrameConditions, align_frame_conditions, pitch_condition_features
 from .config import AudioConfig
 from .content import ContentCadence, StreamingCadenceSelector
@@ -69,6 +70,8 @@ __all__ = [
     "SemanticMailbox",
     "SemanticSidecar",
     "SemanticSnapshot",
+    "SherpaOnnxStreamingASR",
+    "SherpaOnnxTransducerConfig",
     "NativeProsodyExtractor",
     "SpeakerEmbedding",
     "SpectralFrames",
@@ -88,4 +91,4 @@ __all__ = [
     "pitch_condition_features",
     "waveform_to_spectral_frames",
 ]
-__version__ = "0.3.0a1"
+__version__ = "0.3.0a2"
