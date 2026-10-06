@@ -100,12 +100,23 @@ shipping Python.
 
 ### Compatibility target: whisper.cpp
 
-whisper.cpp remains a second adapter/quality baseline:
+whisper.cpp is implemented as a **phrase-final quality/fallback adapter** rather
+than pretending to have the same latency contract as sherpa-onnx.
+
+`WhisperCppCliASR` buffers 16 kHz PCM on the background sidecar and invokes the
+official `whisper-cli` only on `finish()`. It reads the CLI's `-otxt`
+output file and publishes one final `TranscriptHypothesis`.
+
+This gives Voxera a useful second engine for phrase-final quality checks while
+keeping the real-time path honest: sherpa-onnx owns partial hypotheses; whisper
+does not block audio and does not manufacture fake partials.
+
+whisper.cpp provides:
 
 - C/C++ core;
 - Android, Windows, macOS, Linux support;
 - integer quantization;
-- streaming example;
+- streaming examples for future native work;
 - MIT source license.
 
 Voxera pins source bootstrap to `v1.9.4`.
@@ -186,3 +197,22 @@ training must not silently alter M1/M2 output.
 - semantic-to-prosody target supervision;
 - partial-hypothesis stabilization tuned on real speech;
 - latency/power measurements on Android hardware.
+
+
+## Explicit backend selection
+
+M3 provides `ASRBackendSelection` and `ASRBackendKind`.
+
+Selection is explicit:
+
+```text
+SHERPA  → low-latency streaming partial/final hypotheses
+WHISPER → buffered phrase-final transcription
+```
+
+Voxera deliberately does not implement a hidden "try sherpa, silently fall back
+to whisper" policy. The two engines have materially different latency and power
+characteristics, so fallback must be an application-level decision.
+
+The factory `create_asr_backend()` validates that a backend kind and its config
+type match before constructing the engine.

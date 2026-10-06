@@ -49,9 +49,16 @@ after M1/M2 conditioning. Like M2's prosody adapter, it is zero-initialized, so
 an untrained semantic path is an exact identity transform.
 
 Primary ASR integration target: sherpa-onnx. A concrete optional Python
-`SherpaOnnxStreamingASR` adapter now maps its streaming transducer API into
-Voxera's transcript/revision contract. Compatibility/quality target:
-whisper.cpp. Their source trees remain outside the core package.
+`SherpaOnnxStreamingASR` adapter maps its streaming transducer API into
+Voxera's transcript/revision contract.
+
+whisper.cpp now has a concrete `WhisperCppCliASR` phrase-final adapter. It
+buffers audio only on the background sidecar and invokes `whisper-cli` at
+phrase completion, making it a quality/fallback backend rather than a fake
+low-latency streaming engine.
+
+`ASRBackendSelection` makes the choice explicit; Voxera does not silently swap
+between engines with different latency/power behavior.
 
 ```bash
 sh tools/bootstrap_asr.sh
@@ -338,7 +345,7 @@ python benchmarks/frontend.py
 1. **M0 — Core contract:** audio I/O, component interfaces, deterministic tests and benchmark harness. **Done.**
 2. **M1 — Offline VC architecture:** native end-to-end component graph plus MeanVC2 quality oracle. **Architecture/orchestration and full staged + joint training system implemented; real dataset training and quality validation are the remaining M1 gates.**
 3. **M2 — Prosody:** compact prosody/style encoder for pitch contour, energy, pace, pauses and emphasis. **Core descriptor, ProsodyNet, zero-safe conditioner, and teacher-free bootstrap trainer implemented; real expressive-data training remains.**
-4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio. **Core snapshot/mailbox contract, deterministic bilingual intent cues, optional runtime conditioning, sherpa-onnx Python streaming adapter, and pinned backend bootstrap implemented; native JNI/QNN adapter, whisper.cpp adapter, model selection, and real-device benchmarks remain.**
+4. **M3 — Semantic sidecar:** offline streaming ASR/language/intent conditioning without blocking audio. **Core snapshot/mailbox contract, deterministic bilingual intent cues, optional runtime conditioning, sherpa-onnx streaming adapter, whisper.cpp phrase-final adapter, explicit backend selection, and pinned source bootstrap implemented; native JNI/QNN integration, model selection, stabilization, and real-device benchmarks remain.**
 5. **M4 — Edge runtime:** native/ONNX export, FP16/INT8/Q4, reduced runtime and Android/desktop integration.
 6. **M5 — Streaming:** chunked inference, cross-fade/state handling, latency and power optimization.
 

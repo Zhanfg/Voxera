@@ -27,7 +27,7 @@ dependencies of the Python core:
   target, including the implemented optional Python reference adapter plus
   planned Android JNI and Qualcomm QNN/HTP deployment paths.
 - **whisper.cpp v1.9.4** — MIT. Secondary compatibility and ASR quality
-  baseline.
+  baseline, with a concrete phrase-final `whisper-cli` adapter.
 
 `tools/bootstrap_asr.sh` pins these source versions below `.cache/asr/`.
 It does not download ASR model weights.
