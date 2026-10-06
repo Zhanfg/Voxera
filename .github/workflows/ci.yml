@@ -23,6 +23,12 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[dev]"
+      - name: Probe Ruff import fix
+        run: |
+          cp training/smoke_ort_parity.py /tmp/smoke_ort_parity.py
+          ruff check training/smoke_ort_parity.py --fix
+          diff -u /tmp/smoke_ort_parity.py training/smoke_ort_parity.py || true
+          cp /tmp/smoke_ort_parity.py training/smoke_ort_parity.py
       - run: ruff check .
       - run: python -m compileall -q training
       - run: pytest -q
