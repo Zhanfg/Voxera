@@ -38,12 +38,16 @@ class PrecisionPolicy:
     calibration_required: tuple[str, ...] = ("int8_static",)
 
     def __post_init__(self) -> None:
+        candidates = tuple(self.candidates)
+        calibration_required = tuple(self.calibration_required)
         allowed = {"fp32", "fp16", "int8_dynamic", "int8_static", "q4_weight_only"}
-        values = (self.baseline, *self.candidates, *self.calibration_required)
+        values = (self.baseline, *candidates, *calibration_required)
         if any(value not in allowed for value in values):
             raise ValueError("unsupported precision policy value")
-        if self.baseline in self.calibration_required:
+        if self.baseline in calibration_required:
             raise ValueError("baseline precision cannot require calibration")
+        object.__setattr__(self, "candidates", candidates)
+        object.__setattr__(self, "calibration_required", calibration_required)
 
 
 @dataclass(frozen=True, slots=True)
