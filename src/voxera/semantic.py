@@ -236,7 +236,7 @@ class NativeSemanticAnalyzer:
             uncertainty,
             continuation,
         )
-        statement = float(np.clip(1.0 - 0.75 * non_statement, 0.0, 1.0))
+        statement = float(np.clip(1.0 - non_statement, 0.0, 1.0))
 
         punctuation_count = sum(ch in "!?！？。,.，…;；:" for ch in text)
         punctuation_density = float(
