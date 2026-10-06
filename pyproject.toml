@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "voxera"
-version = "0.3.0a1"
+version = "0.3.0a2"
 description = "Lightweight offline semantic-prosodic neural voice conversion engine for edge devices."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,6 +31,10 @@ dev = [
 train = [
   "torch>=2.6,<3",
   "onnx>=1.17,<2",
+]
+asr-sherpa = [
+  "sherpa-onnx==1.13.8",
+  "sherpa-onnx-bin==1.13.8",
 ]
 
 [project.scripts]
