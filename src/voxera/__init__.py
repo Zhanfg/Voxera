@@ -2,7 +2,9 @@
 
 from .acoustic import MelConfig, MelSpectrogram, expected_mel_frames
 from .asr import SemanticMailbox, SemanticSidecar, StreamingASRBackend, TextReplayASR
+from .asr_backends import ASRBackendKind, ASRBackendSelection, create_asr_backend
 from .asr_sherpa import SherpaOnnxStreamingASR, SherpaOnnxTransducerConfig
+from .asr_whisper import WhisperCppCliASR, WhisperCppCliConfig
 from .conditioning import FrameConditions, align_frame_conditions, pitch_condition_features
 from .config import AudioConfig
 from .content import ContentCadence, StreamingCadenceSelector
@@ -42,6 +44,8 @@ from .vocoder import (
 )
 
 __all__ = [
+    "ASRBackendKind",
+    "ASRBackendSelection",
     "AudioConfig",
     "NativeSemanticAnalyzer",
     "ContentCadence",
@@ -82,13 +86,16 @@ __all__ = [
     "StreamingLogMelFrontend",
     "StreamingYinPitchExtractor",
     "TextReplayASR",
+    "WhisperCppCliASR",
+    "WhisperCppCliConfig",
     "TranscriptHypothesis",
     "YinPitchExtractor",
     "align_frame_conditions",
     "classify_prosody_style",
+    "create_asr_backend",
     "cosine_similarity",
     "expected_mel_frames",
     "pitch_condition_features",
     "waveform_to_spectral_frames",
 ]
-__version__ = "0.3.0a2"
+__version__ = "0.3.0a3"
