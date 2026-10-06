@@ -53,3 +53,4 @@ jobs:
       - run: python -m training.smoke_train_joint
       - run: python -m training.smoke_train_prosody
       - run: python -m training.smoke_export_bundle
+      - run: python -m training.smoke_ort_parity
