@@ -82,6 +82,7 @@ class BundleManifest:
     sample_rate: int
     acoustic_hop_ms: int
     condition_hop_ms: int
+    source_checkpoint_sha256: str | None = None
     schema: int = DEPLOYMENT_SCHEMA
     artifacts: tuple[ModelArtifact, ...] = ()
 
@@ -92,6 +93,16 @@ class BundleManifest:
             raise ValueError("version and weights_status must be non-empty")
         if min(self.sample_rate, self.acoustic_hop_ms, self.condition_hop_ms) <= 0:
             raise ValueError("timebase values must be positive")
+        if self.source_checkpoint_sha256 is not None:
+            if len(self.source_checkpoint_sha256) != 64:
+                raise ValueError("source checkpoint SHA-256 must contain 64 hex characters")
+            try:
+                int(self.source_checkpoint_sha256, 16)
+            except ValueError as error:
+                raise ValueError(
+                    "source checkpoint SHA-256 must be hexadecimal"
+                ) from error
+
         names = [artifact.name for artifact in self.artifacts]
         files = [artifact.file for artifact in self.artifacts]
         if len(names) != len(set(names)):
@@ -135,6 +146,7 @@ def load_bundle_manifest(path: Path) -> BundleManifest:
         sample_rate=payload["sample_rate"],
         acoustic_hop_ms=payload["acoustic_hop_ms"],
         condition_hop_ms=payload["condition_hop_ms"],
+        source_checkpoint_sha256=payload.get("source_checkpoint_sha256"),
         artifacts=artifacts,
     )
 
