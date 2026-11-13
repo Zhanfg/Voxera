@@ -107,14 +107,15 @@ class WhisperCppCliASR:
     def finish(self) -> tuple[TranscriptHypothesis, ...]:
         if self._finished:
             return ()
-        self._finished = True
 
         if not self._chunks:
+            self._finished = True
             return ()
 
         audio = np.concatenate(self._chunks).astype(np.float32, copy=False)
         text = self._transcribe(audio)
         normalized = " ".join(text.strip().split())
+        self._finished = True
         if not normalized:
             return ()
 
