@@ -84,6 +84,25 @@ def test_cli_failure_is_propagated() -> None:
     with pytest.raises(RuntimeError, match="model load failed"):
         adapter.finish()
 
+    # A failed finish() must not mark the stream done, so a later attempt can
+    # still transcribe the buffered audio.
+    calls = {"n": 0}
+
+    def flaky(command: list[str], timeout: float):
+        del timeout
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="transient")
+        return _successful_runner(command, 1.0)
+
+    retry = WhisperCppCliASR(_config(), runner=flaky)
+    retry.accept_audio(np.zeros(160, dtype=np.float32), 16_000)
+    with pytest.raises(RuntimeError, match="transient"):
+        retry.finish()
+    result = retry.finish()
+    assert result[0].text == "你好 世界"
+    assert calls["n"] == 2
+
 
 def test_missing_real_files_are_rejected() -> None:
     with pytest.raises(FileNotFoundError):
