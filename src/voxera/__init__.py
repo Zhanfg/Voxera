@@ -117,4 +117,4 @@ __all__ = [
     "verify_bundle",
     "waveform_to_spectral_frames",
 ]
-__version__ = "0.4.0a1"
+__version__ = "0.4.0a2"

@@ -141,14 +141,43 @@ Q4 weight-only is not enabled in the first contract. It is backend-specific and
 must first prove acceptable quality and operator coverage on the actual target
 runtime.
 
+## ONNX Runtime parity gate
+
+Exportability alone is not sufficient. M4 pins the reference CPU execution
+environment to ONNX Runtime 1.30.0 and compares each exported graph against the
+same PyTorch weights.
+
+The parity smoke intentionally evaluates **different frame lengths** from those
+used during export:
+
+- ContentNet: content + next cache;
+- TimbreNet: speaker embedding;
+- ConditionFusion: fused condition;
+- DecoderNet: mel + next cache;
+- LiteVocoder: log magnitude + phase + next cache.
+
+This catches accidentally frozen dynamic dimensions and state-shape mistakes,
+not just malformed ONNX files.
+
+Current smoke tolerance:
+
+```text
+absolute <= 3e-5
+relative <= 2e-4
+```
+
+These tolerances are an FP32 export/runtime gate, not the later FP16/INT8 quality
+budget.
+
 ## CI
 
 CI exports the same five ONNX graphs using explicit random initialization,
-validates each graph with `onnx.checker`, writes the deployment manifest, then
-re-loads the manifest and verifies every SHA-256.
+validates each graph with `onnx.checker`, writes the deployment manifest,
+re-loads the manifest, verifies every SHA-256, then runs PyTorch ↔ ONNX Runtime
+numeric parity on different dynamic frame lengths.
 
-This validates architecture/export compatibility without pretending that the
-generated smoke bundle has useful voice-conversion weights.
+This validates architecture/export/runtime compatibility without pretending
+that the generated smoke bundle has useful voice-conversion weights.
 
 ## Next M4 steps
 
